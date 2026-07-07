@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compliance Archive</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#21262d;
+  --border:#30363d;--border2:#444c56;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --accent:#58a6ff;--accent2:#1f6feb;
+  --high:#ff7b72;--highbg:#3d1c1c;
+  --mid:#e3b341;--midbg:#2e2005;
+  --low:#3fb950;--lowbg:#0d2b12;
+  --radius:8px;--radius2:12px;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.sidebar{width:220px;min-width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 16px;gap:8px;overflow-y:auto;height:100vh}
+.logo{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:4px}
+.logo span{color:var(--accent);display:block;font-size:18px;font-weight:800;letter-spacing:-.02em;margin-top:2px}
+.divider{height:1px;background:var(--border);margin:8px 0}
+.stat-label{font-size:11px;color:var(--text3)}
+.stat-num{font-size:32px;font-weight:800;color:var(--text);line-height:1.1}
+.stat-sub{font-size:11px;color:var(--text3);margin-bottom:4px}
+.filter-label{font-size:11px;color:var(--text3);margin-bottom:4px}
+.course-list{display:flex;flex-direction:column;gap:2px;max-height:140px;overflow-y:auto}
+.course-btn{background:none;border:none;color:var(--text2);font-size:12px;text-align:left;padding:4px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.course-btn:hover{background:var(--bg4);color:var(--text)}
+.course-btn.active{background:var(--accent2);color:#fff}
+.spacer{margin-top:16px}
+.btn{width:100%;padding:9px 12px;border-radius:var(--radius);border:none;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+.btn-primary{background:var(--accent2);color:#fff}
+.btn-primary:hover{background:#388bfd}
+.btn-outline{background:none;border:1px solid var(--border2);color:var(--text2)}
+.btn-outline:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:none;border:1px solid #3d1c1c;color:var(--text3);font-size:12px}
+.btn-danger:hover{border-color:var(--high);color:var(--high)}
+#saveBtn{display:none}
+
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{padding:16px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.topbar h1{font-size:20px;font-weight:700;flex:1}
+.search-wrap{position:relative}
+.search-wrap input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:7px 12px 7px 32px;color:var(--text);font-size:13px;width:240px}
+.search-wrap input:focus{outline:none;border-color:var(--accent)}
+.search-wrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px}
+
+/* Table */
+.table-wrap{flex:1;overflow:auto;padding:0 24px 24px}
+.table-meta{padding:12px 0;font-size:12px;color:var(--text3)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg2);padding:10px 12px;text-align:left;font-size:12px;color:var(--text2);font-weight:600;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:hover td{background:var(--bg3)}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:20px;font-size:12px;font-weight:600;cursor:default;position:relative}
+.tag-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.risk-badge{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700}
+.risk-상{background:var(--highbg);color:var(--high)}
+.risk-중{background:var(--midbg);color:var(--mid)}
+.risk-하{background:var(--lowbg);color:var(--low)}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 6px;border-radius:4px;font-size:13px}
+.del-btn:hover{color:var(--high);background:var(--highbg)}
+
+/* Tooltip */
+.has-tip{position:relative}
+.tip{display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:240px;background:#1a1f2e;border:1px solid var(--border2);border-radius:10px;padding:12px;z-index:100;box-shadow:0 8px 24px #0008;pointer-events:none;font-size:11px;line-height:1.5}
+.tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--border2)}
+.has-tip:hover .tip{display:block}
+.tip-head{font-weight:700;color:var(--text);margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.tip-desc{color:var(--text2);margin-bottom:6px}
+.tip-law{color:var(--text3);font-family:monospace}
+
+/* Modal */
+.overlay{display:none;position:fixed;inset:0;background:#0009;z-index:50;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);width:min(680px,96vw);max-height:90vh;display:flex;flex-direction:column}
+.modal-head{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-desc{font-size:12px;color:var(--text3);margin-top:3px}
+.modal-close{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px}
+.modal-close:hover{color:var(--text);background:var(--bg4)}
+.modal-tabs{display:flex;gap:0;padding:0 24px;border-bottom:1px solid var(--border)}
+.modal-tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--text2);cursor:pointer;padding:10px 14px;font-size:13px;margin-bottom:-1px}
+.modal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.modal-body{padding:20px 24px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.field label{display:block;font-size:12px;color:var(--text2);margin-bottom:6px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:13px}
+.field input:focus,.field select,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field select option{background:var(--bg3)}
+.bulk-textarea{height:160px;resize:vertical;font-family:inherit;line-height:1.6}
+.meta-row{display:grid;grid-template-columns:1fr 140px;gap:12px}
+.btn-sm{padding:7px 14px;font-size:13px;border-radius:var(--radius)}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border2);border-radius:var(--radius2);padding:32px;text-align:center;cursor:pointer;transition:.15s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:var(--bg3)}
+.upload-zone.has-file{border-color:var(--low);background:var(--lowbg)}
+.upload-icon{font-size:28px;margin-bottom:8px}
+.upload-label{font-size:14px;color:var(--text2);margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--text3)}
+.upload-filename{font-size:12px;color:var(--low);margin-top:8px}
+.img-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.img-thumb{position:relative;width:80px;height:80px}
+.img-thumb img{width:100%;height:100%;object-fit:cover;border-radius:6px}
+.img-thumb button{position:absolute;top:-6px;right:-6px;background:var(--high);border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* Progress */
+.progress-wrap{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.progress-bar{height:100%;background:var(--accent);transition:width .3s;width:0}
+.parse-status{font-size:12px;color:var(--text3)}
+.parse-status.ok{color:var(--low)}
+.parse-status.err{color:var(--high)}
+.preview-list{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.preview-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:12px}
+.preview-item input[type=checkbox]{width:14px;height:14px;accent-color:var(--accent)}
+.preview-ts{color:var(--text3);font-family:monospace;min-width:80px}
+.preview-summary{flex:1;color:var(--text)}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg4);border:1px solid var(--border2);border-radius:var(--radius);padding:10px 18px;font-size:13px;color:var(--text);opacity:0;transition:.3s;z-index:200;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.result-list{display:flex;flex-direction:column;gap:8px}
+.result-item{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;gap:10px;align-items:flex-start}
+.result-item input[type=checkbox]{margin-top:2px;width:14px;height:14px;accent-color:var(--accent);flex-shrink:0}
+.result-body{flex:1}
+.result-quote{font-size:12px;color:var(--text);margin-bottom:4px;font-style:italic}
+.result-reason{font-size:11px;color:var(--text2)}
+.result-meta{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.result-ts{font-size:11px;color:var(--text3);font-family:monospace}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo">COMPLIANCE<span>ARCHIVE</span></div>
+  <div class="divider"></div>
+  <div class="stat-label">총 제거 구간</div>
+  <div class="stat-num" id="statTotal">0</div>
+  <div class="stat-sub" id="statSub">건 아카이빙됨</div>
+  <div class="divider"></div>
+  <div class="filter-label">과정 필터</div>
+  <div class="course-list" id="courseList"></div>
+  <div class="spacer"></div>
+  <button class="btn btn-primary" id="saveBtn" onclick="saveData()">💾 저장 (파일 교체)</button>
+  <button class="btn btn-outline" onclick="openBulkModal()" style="margin-top:4px">⚡ 메모 붙여넣기</button>
+  <button class="btn btn-outline" onclick="openReviewModal()">🔍 컴플 검토</button>
+  <button class="btn btn-outline" onclick="openScriptModal()">📝 스크립트 검토</button>
+  <button class="btn btn-outline" onclick="openFormModal()">+ 구간 직접 입력</button>
+  <button class="btn btn-outline" onclick="exportXLSX()">↓ 엑셀 내보내기</button>
+  <button class="btn btn-danger" onclick="resetData()">↺ 데이터 초기화</button>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <h1>제거 구간 목록</h1>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="검색..." oninput="renderTable()">
+    </div>
+  </div>
+  <div class="table-wrap">
+    <div class="table-meta" id="tableMeta"></div>
+    <table>
+      <thead><tr>
+        <th>#</th><th>강의명</th><th>날짜</th><th>타임스탬프</th>
+        <th>위험 유형</th><th>제거 내용 요약</th><th>위험도</th><th></th>
+      </tr></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ── 메모 붙여넣기 모달 ── -->
+<div class="overlay" id="bulkOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">⚡ 구간 일괄 추가</div>
+        <div class="modal-desc">텍스트 붙여넣기, PDF, 또는 캡처 이미지로 AI가 자동 파싱·분류합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeBulkModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="btab-paste" onclick="switchBulkTab('paste')">📋 텍스트</button>
+      <button class="modal-tab" id="btab-pdf"  onclick="switchBulkTab('pdf')">📄 PDF</button>
+      <button class="modal-tab" id="btab-img"  onclick="switchBulkTab('img')">🖼 이미지</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-row">
+        <div class="field">
+          <label>강의명</label>
+          <input type="text" id="b_lecture" list="lectureListB" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <datalist id="lectureListB"></datalist>
+        </div>
+        <div class="field"><label>날짜</label><input type="text" id="b_date" placeholder="260608"></div>
+      </div>
+      <div class="tab-panel active" id="bpanel-paste">
+        <div class="field">
+          <label>메모 내용</label>
+          <textarea class="bulk-textarea" id="b_memo" placeholder="40:23 소선업에서 반노제 삭제&#10;47:34 애널리스트 도움 받았고요 삭제&#10;53:57~1:03:24 질의응답 구간"></textarea>
+        </div>
+      </div>
+      <div class="tab-panel" id="bpanel-pdf">
+        <input type="file" id="bPdfInput" accept=".pdf" style="display:none" onchange="loadBulkPdf(this.files[0])">
+        <div class="upload-zone" id="bUploadZone" onclick="document.getElementById('bPdfInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');loadBulkPdf(event.dataTransfer.files[0])">
+          <div class="upload-icon">📄</div>
+          <div class="upload-label">PDF 파일 업로드</div>
+          <div class="upload-sub">드래그하거나 클릭</div>
+          <div class="upload-filename" id="bPdfName"></div>
+        </div>
+      </div>
+      <div class="tab-panel" id="bpanel-img">
+        <input type="file" id="bImgInput" accept="image/*" multiple style="display:none" onchange="addBulkImgs(this.files)">
+        <div class="upload-zone" id="bImgZone" onclick="document.getElementById('bImgInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');addBulkImgs(event.dataTransfer.files)">
+          <div class="upload-icon">🖼</div>
+          <div class="upload-label">캡처 이미지 업로드</div>
+          <div class="upload-sub">여러 장 동시 가능</div>
+        </div>
+        <div class="img-grid" id="bImgGrid"></div>
+      </div>
+      <div class="progress-wrap" id="bProgress" style="display:none"><div class="progress-bar" id="bBar"></div></div>
+      <div class="parse-status" id="bStatus"></div>
+      <div class="preview-list" id="bPreview"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" onclick="closeBulkModal()">취소</button>
+      <button class="btn btn-outline btn-sm" id="bParseBtn" onclick="runBulkParse()">✦ AI 파싱·분류</button>
+      <button class="btn btn-primary btn-sm" id="bConfirmBtn" style="display:none" onclick="confirmBulk()">아카이브에 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 컴플 검토 모달 ── -->
+<div class="overlay" id="reviewOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">🔍 컴플 검토</div>
+        <div class="modal-desc">발언을 입력하면 AI가 컴플 위반 여부를 판단합니다</div>
+      </div>
+      <button class="modal-close" onclick="closeReviewModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-row">
+        <div class="field">
+          <label>강의명</label>
+          <input type="text" id="rv_lecture" list="lectureListRv" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <datalist id="lectureListRv"></datalist>
+        </div>
+        <div class="field"><label>타임스탬프</label><input type="text" id="rv_ts" placeholder="43:21"></div>
+      </div>
+      <div class="field"><label>검토할 발언</label><textarea class="bulk-textarea" id="rv_content" style="height:100px" placeholder="검토할 발언을 입력하세요"></textarea></div>
+      <div class="progress-wrap" id="rvProgress" style="display:none"><div class="progress-bar" id="rvBar"></div></div>
+      <div id="rvResult"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" onclick="closeReviewModal()">닫기</button>
+      <button class="btn btn-outline btn-sm" onclick="runReview()">✦ AI 검토</button>
+      <button class="btn btn-primary btn-sm" id="rvAddBtn" style="display:none" onclick="addFromReview()">아카이브에 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 스크립트 검토 모달 ── -->
+<div class="overlay" id="scriptOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">📝 스크립트 컴플 검토</div>
+        <div class="modal-desc">스크립트 전체를 AI가 스캔해 문제 구간을 추려드립니다</div>
+      </div>
+      <button class="modal-close" onclick="closeScriptModal()">✕</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="sctab-text" onclick="switchScriptTab('text')">📋 텍스트</button>
+      <button class="modal-tab" id="sctab-pdf"  onclick="switchScriptTab('pdf')">📄 PDF</button>
+      <button class="modal-tab" id="sctab-img"  onclick="switchScriptTab('img')">🖼 이미지</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-row">
+        <div class="field">
+          <label>강의명</label>
+          <input type="text" id="sc_lecture" list="lectureListSc" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <datalist id="lectureListSc"></datalist>
+        </div>
+        <div class="field"><label>날짜</label><input type="text" id="sc_date" placeholder="260608"></div>
+      </div>
+      <div class="tab-panel active" id="scpanel-text">
+        <div class="field"><label>스크립트</label><textarea class="bulk-textarea" id="sc_script" placeholder="00:18 | 발언내용&#10;00:21 | 발언내용"></textarea></div>
+      </div>
+      <div class="tab-panel" id="scpanel-pdf">
+        <input type="file" id="scPdfInput" accept=".pdf" style="display:none" onchange="loadScPdf(this.files[0])">
+        <div class="upload-zone" id="scUploadZone" onclick="document.getElementById('scPdfInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');loadScPdf(event.dataTransfer.files[0])">
+          <div class="upload-icon">📄</div><div class="upload-label">PDF 업로드</div>
+          <div class="upload-sub">드래그하거나 클릭</div>
+          <div class="upload-filename" id="scPdfName"></div>
+        </div>
+      </div>
+      <div class="tab-panel" id="scpanel-img">
+        <input type="file" id="scImgInput" accept="image/*" multiple style="display:none" onchange="addScImgs(this.files)">
+        <div class="upload-zone" id="scImgZone" onclick="document.getElementById('scImgInput').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');addScImgs(event.dataTransfer.files)">
+          <div class="upload-icon">🖼</div><div class="upload-label">이미지 업로드</div><div class="upload-sub">여러 장 가능</div>
+        </div>
+        <div class="img-grid" id="scImgGrid"></div>
+      </div>
+      <div class="progress-wrap" id="scProgress" style="display:none"><div class="progress-bar" id="scBar"></div></div>
+      <div class="parse-status" id="scStatus"></div>
+      <div class="result-list" id="scResults"></div>
+    </div>
+    <div class="modal-foot">
+      <div style="flex:1;font-size:12px;color:var(--text3)" id="scNote"></div>
+      <button class="btn btn-outline btn-sm" onclick="closeScriptModal()">닫기</button>
+      <button class="btn btn-outline btn-sm" id="scScanBtn" onclick="runScriptScan()">✦ AI 스캔</button>
+      <button class="btn btn-primary btn-sm" id="scAddBtn" style="display:none" onclick="addScriptItems()">선택 항목 추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 직접 입력 모달 ── -->
+<div class="overlay" id="formOverlay">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head">
+      <div><div class="modal-title">+ 구간 직접 입력</div></div>
+      <button class="modal-close" onclick="closeFormModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-row">
+        <div class="field">
+          <label>강의명</label>
+          <input type="text" id="f_lecture" list="lectureListF" autocomplete="off" placeholder="김영익_실전투자교실">
+          <datalist id="lectureListF"></datalist>
+        </div>
+        <div class="field"><label>날짜</label><input type="text" id="f_date" placeholder="260608"></div>
+      </div>
+      <div class="meta-row">
+        <div class="field"><label>타임스탬프</label><input type="text" id="f_ts" placeholder="43:21~47:52"></div>
+        <div class="field">
+          <label>위험도</label>
+          <select id="f_risk"><option value="">선택</option><option>상</option><option>중</option><option>하</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>위험 유형</label>
+        <select id="f_cat">
+          <option value="">선택</option>
+          <option value="①">① 특정 종목 추천/매매 시점</option>
+          <option value="②">② 시황 전망/단정</option>
+          <option value="③">③ 자산배분/포트폴리오 권유</option>
+          <option value="④">④ 개인 신상/사례 언급</option>
+          <option value="⑤">⑤ 제3자 인용/외부 추천</option>
+          <option value="⑥">⑥ 심리적 자극/불안 유발</option>
+          <option value="⑦">⑦ 양방향 소통 구간</option>
+        </select>
+      </div>
+      <div class="field"><label>제거 내용 요약</label><input type="text" id="f_content" placeholder="포스코홀딩스 종목 추천 발언"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-outline btn-sm" onclick="closeFormModal()">취소</button>
+      <button class="btn btn-primary btn-sm" onclick="addEntry()">추가</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── 카테고리 메타 ──
+const CATS = {
+  "①":{label:"특정 종목 추천/매매 시점",color:"#FF5A5A",risk:"상",desc:"특정 종목 매수·매도·보유 직접 권유, 매매 타이밍 언급",law:"자본시장법 §71, §101①"},
+  "②":{label:"시황 전망/단정",color:"#FF9040",risk:"중",desc:"시장 방향을 단정적으로 제시, 불확실성 고지 없이 확정적 표현",law:"금융소비자보호법 §19"},
+  "③":{label:"자산배분/포트폴리오 권유",color:"#3EC97A",risk:"상",desc:"특정 비중 투자 권유, 개별 맞춤형 포트폴리오 제시",law:"자본시장법 §17, §7③"},
+  "④":{label:"개인 신상/사례 언급",color:"#4F8EF7",risk:"중",desc:"특정 수강생·지인의 투자 금액·결과를 식별 가능 형태로 언급",law:"개인정보보호법 §15·§18"},
+  "⑤":{label:"제3자 인용/외부 추천",color:"#B97FFF",risk:"상",desc:"애널리스트 등 제3자 종목 추천 전달, 출처 불명확 투자정보",law:"자본시장법 §54"},
+  "⑥":{label:"심리적 자극/불안 유발",color:"#E8A04A",risk:"중",desc:"실현되지 않은 수익률 제시, 손실 보전 암시, 극단적 공포·탐욕 자극",law:"금융소비자보호법 §21"},
+  "⑦":{label:"양방향 소통 구간",color:"#7A8AAA",risk:"하",desc:"실시간 Q&A·댓글·1:1 채팅 투자 조언, 유료 회원 게시판 운영",law:"자본시장법 §7③"},
+};
+const RISK_INFO = {
+  "상":{color:"var(--high)",desc:"법령 명백 위반, 반드시 제거",penalty:"3년 이하 징역 또는 1억원 이하 벌금"},
+  "중":{color:"var(--mid)",desc:"표현·맥락에 따라 위반 소지, 수정 또는 제거 검토",penalty:"1억원 이하 과태료"},
+  "하":{color:"var(--low)",desc:"구조적 위험, 채널 형식 자체가 문제",penalty:"지도·권고 수준"},
+};
+const COMPLIANCE_STANDARD = `유사투자자문업 컴플라이언스 기준 (자본시장법 개정 2024.8.14. 시행)
+핵심 규제: 불특정 다수 단방향 투자조언만 허용(§101①), 양방향 채널 유료영업 금지(§7③), 1:1 투자자문 금지(§445), 이익보장·손실보전 금지(§55,§98①), 실현되지 않은 수익률 광고 금지(§101의2②제3호)
+위험 유형: ①종목추천/매매시점(§71,§101①) ②시황단정(금소법§19) ③자산배분권유(§17,§7③) ④개인신상언급(개인정보법§15·18) ⑤제3자인용(§54) ⑥심리자극/수익률과장(금소법§21,§101의2②3호) ⑦양방향소통(§7③)
+허용: 단방향 일반 투자정보, C/S 목적 1:1 응대(투자조언 아닌 경우), 댓글 완전 차단된 단방향 유료채널`;
+
+// ── 데이터 (파일 저장 방식) ──
+// SAVE_DATA_START
+let data = JSON.parse('[["김영익_실전투자교실", "260601", "00:10", "②", "6월에 주식 비중 줄이는 게 좋다 발언", "중"], ["김영익_실전투자교실", "260601", "00:34", "①", "여전히 주식 비중 축소 권유", "상"], ["김영익_실전투자교실", "260601", "13:11", "①", "삼성전자 구매 후 장기보유 권유", "상"], ["김영익_실전투자교실", "260601", "15:30", "①", "삼성전자 매수보다 조정 예측 발언", "상"], ["김영익_실전투자교실", "260601", "16:41~17:19", "②", "선행지수 관련 시황 전망 구간 전체", "중"], ["김영익_실전투자교실", "260601", "17:26~17:36", "④", "현금 5억 보유자 투자 질문 직접 언급", "중"], ["김영익_실전투자교실", "260601", "18:28", "①", "삼성전자 적극 매수 부적절 시기 발언", "상"], ["김영익_실전투자교실", "260601", "18:37", "①", "비중 줄이며 조정 준비 권유", "상"], ["김영익_실전투자교실", "260601", "26:08", "③", "금리 하락 전망 + 채권 비중 확대 권유", "상"], ["김영익_실전투자교실", "260601", "28:26", "①", "LG전자 상한가 과도 여부 의견 표명", "상"], ["김영익_실전투자교실", "260601", "31:26", "②", "코스피 상승분 앞당겨 올랐다는 주관적 전망", "중"], ["김영익_실전투자교실", "260601", "32:21", "②", "버핏지수 과열·반도체 버블 단정 발언", "중"], ["김영익_실전투자교실", "260601", "33:22~32:27", "②", "IT 거품 직전, 코스피 과대평가 구간 전체", "중"], ["김영익_실전투자교실", "260601", "34:47", "③", "하반기 안정형 포트폴리오 전체 삭제", "상"], ["김영익_실전투자교실", "260601", "38:13", "①", "첫 수업 관심 업종·종목 언급 발언", "상"], ["김영익_실전투자교실", "260601", "39:36", "①", "반도체 조정 후 특정 분야 상승 전망", "상"], ["김영익_실전투자교실", "260601", "39:47", "①", "특정 종목 추천 발언", "상"], ["김영익_실전투자교실", "260601", "39:57", "①", "이 종목 관심 가져야 한다 권유", "상"], ["김영익_실전투자교실", "260601", "40:06~40:53", "⑤", "애널리스트 삼성SDI 적극 추천 인용", "상"], ["김영익_실전투자교실", "260601", "45:25", "⑥", "극단적 선택 언급 애널리스트 과거 이야기", "중"], ["김영익_실전투자교실", "260601", "46:01", "③", "다음주 비중 구체적 질문 예고", "상"], ["김영익_실전투자교실", "260601", "47:31~47:47", "⑦", "양방향 소통 구간 삭제", "하"], ["김영익_실전투자교실", "260608", "00:25", "①", "5월 말 주식 비중 축소 권유 재언급", "상"], ["김영익_실전투자교실", "260608", "00:38", "⑦", "오늘 어떻게 대응했는지 양방향 질문", "하"], ["김영익_실전투자교실", "260608", "07:15", "④", "힘들었던 시기 한강 언급 개인 발언", "중"], ["김영익_실전투자교실", "260608", "11:23~18:44", "①", "삼성중공업 강의 방문 및 투자 권유 내용", "상"], ["김영익_실전투자교실", "260608", "21:05", "①", "삼성전자·하이닉스 동반 상승 전망 발언", "상"], ["김영익_실전투자교실", "260608", "22:38", "⑤", "애널리스트 전망이 더 옳다는 발언", "중"], ["김영익_실전투자교실", "260608", "22:49~23:52", "④", "본인 매수가 등 개인적 투자 의견 발언", "중"], ["김영익_실전투자교실", "260608", "24:15", "③", "현금 준비하라는 자산배분 권유", "상"], ["김영익_실전투자교실", "260608", "24:23~25:04", "①", "삼성전자 방문 강의 및 관심 권유 내용", "상"], ["김영익_실전투자교실", "260608", "27:00~27:51", "①", "현대자동차 주가·매수 시점 발언", "상"], ["김영익_실전투자교실", "260608", "39:51", "④", "제자 저서 관련 개인적 언급", "중"], ["김영익_실전투자교실", "260608", "40:23", "②", "조선업·반도체·현대차 관련 시황 발언", "중"], ["김영익_실전투자교실", "260608", "46:22", "⑤", "외부 자료 읽어보라는 권유 발언", "중"], ["김영익_실전투자교실", "260608", "47:34", "⑤", "애널리스트 도움 받았다는 제3자 인용", "상"], ["김영익_실전투자교실", "260608", "51:34", "②", "장 8천 포인트 상승 과정 시황 발언", "중"], ["김영익_실전투자교실", "260608", "53:57~1:03:24", "⑦", "금감원 질의응답 제한 언급 및 Q&A 구간", "하"], ["김영익_실전투자교실", "260608", "1:10:34", "⑤", "제3자(시티) 견해 인용 발언", "상"], ["김영익_실전투자교실", "260608", "1:15:30", "⑥", "핑계를 찾고 있다는 자극적 워딩", "중"], ["김영익_실전투자교실", "260608", "1:19:06", "②", "국내 주가 과대평가 단정 발언", "중"], ["김영익_실전투자교실", "260615", "00:52", "⑤", "애널리스트 적극 매수 권유 인용", "상"], ["김영익_실전투자교실", "260615", "01:31~02:23", "①", "주가 변동 후 투자 접근 방식 발언", "상"], ["김영익_실전투자교실", "260615", "27:47", "②", "주가 상승 여력 충분 단정 발언", "중"], ["김영익_실전투자교실", "260615", "28:31", "②", "주가 하락 요인 없다는 단정 발언", "중"], ["김영익_실전투자교실", "260615", "54:59~55:40", "③", "장비업체 밸류에이션 기준 매수 권유", "상"], ["김영익_실전투자교실", "260615", "01:05:14", "①", "투자 도움 줬다는 자평 발언", "중"], ["김영익_실전투자교실", "260615", "01:14:05~01:14:28", "②", "코스피 과대평가 및 적정지수 단정 발언", "중"], ["김영익_실전투자교실", "260615", "01:26:24", "②", "원화 환율 전망 단정 발언", "중"], ["김영익_실전투자교실", "260615", "01:29:56", "⑤", "펀드 수익률 관련 의견 발언", "중"], ["김영익_실전투자교실", "260615", "01:30:57~01:31:58", "③", "자산운용사 종목 정보 활용 권유", "상"], ["김영익_실전투자교실", "260615", "01:32:35", "①", "삼성전자·SK하이닉스 추가 상승 전망", "상"], ["김영익_실전투자교실", "260615", "01:33:13~01:33:32", "③", "포트폴리오 구성 관련 제3자 의견 전달", "상"], ["김영익_실전투자교실", "260622", "00:46", "①", "반도체·삼성전자·하이닉스 미보유 아쉬움 발언", "상"], ["김영익_실전투자교실", "260622", "03:42", "①", "코스닥 투자 비권유 발언", "상"], ["김영익_실전투자교실", "260622", "03:59", "①", "코스피 장기투자 권유 발언", "상"], ["김영익_실전투자교실", "260622", "06:02", "②", "코스피 상승 어려움 단정 발언", "중"], ["김영익_실전투자교실", "260622", "11:31", "⑦", "질문 받고 답변하는 양방향 구간", "하"], ["김영익_실전투자교실", "260622", "11:50", "⑦", "궁금한 점 답변 양방향 소통 구간", "하"], ["김영익_실전투자교실", "260622", "22:33", "⑦", "수강생 양방향 소통 구간", "하"], ["김영익_실전투자교실", "260622", "23:35", "⑦", "수강생 양방향 소통 구간", "하"], ["김영익_실전투자교실", "260622", "38:57", "④", "지인·친인척 투자 권유 사례 언급", "중"], ["김영익_실전투자교실", "260622", "43:14", "⑤", "일론 머스크·스페이스X 투자 사례 언급", "중"], ["김영익_실전투자교실", "260622", "44:29", "③", "중위험 중수익 자산배분 권유", "상"], ["김영익_실전투자교실", "260622", "45:52", "③", "간접투자 및 롱숏 비중 조절 권유", "상"], ["김영익_자산배분 포트폴리오", "260604", "10:45~10:58", "②", "충격 시점 내년 상반기 단정 발언", "중"], ["김영익_자산배분 포트폴리오", "260604", "21:37", "⑦", "양방향 소통 질문 언급 구간", "하"], ["김영익_자산배분 포트폴리오", "260604", "24:40", "②", "미국 10년 국채 매수 이유 없다는 단정", "중"], ["김영익_자산배분 포트폴리오", "260604", "31:19", "①", "삼성전자 매수 후 장기보유 권유", "상"], ["김영익_자산배분 포트폴리오", "260604", "31:28~31:40", "④", "삼전으로 유학 보낸 친척 이야기", "중"], ["김영익_자산배분 포트폴리오", "260604", "36:41~37:07", "⑤", "타인 전망이 더 옳다는 의견 표명", "중"], ["김영익_자산배분 포트폴리오", "260604", "38:18", "①", "삼성전자 주가 하락 가능성 직접 언급", "상"], ["김영익_자산배분 포트폴리오", "260604", "39:32~40:48", "③", "선행지수 기반 주식 비중 확대 권유 다수", "상"], ["김영익_자산배분 포트폴리오", "260604", "44:19~44:40", "③", "현금 보유·매수 타이밍 직접 권유", "상"], ["김영익_자산배분 포트폴리오", "260604", "45:00~45:29", "③", "선행지수 기반 주식 확대 및 금 10% 권유", "상"], ["김영익_자산배분 포트폴리오", "260604", "45:29", "③", "포트폴리오 구간 전체 제거", "상"], ["김영익_자산배분 포트폴리오", "260604", "46:26~51:24", "⑦", "보충학습 Q&A 전체(1교시 반복 내용)", "하"], ["김영익_자산배분 포트폴리오", "260604", "51:58", "②", "코스피·S&P 거품 상반기 내 발생 단정", "중"], ["김영익_자산배분 포트폴리오", "260604", "52:07", "③", "보수적 운용 후 적극 투자 타이밍 권유", "상"], ["김영익_자산배분 포트폴리오", "260604", "52:23", "②", "현재 시장 상황 비관적 발언", "중"], ["월간 곽수종", "260627", "00:31", "⑥", "대한민국 주식 비추천 자극적 발언", "상"], ["월간 곽수종", "260627", "52:43", "⑥", "특정 인물 비하 감정적 발언", "상"], ["월간 곽수종", "260627", "55:17", "①", "스페이스X 무조건 매수 권유", "상"], ["월간 곽수종", "260627", "01:16:23", "④", "개인 신상(출생지) 언급", "중"], ["월간 곽수종", "260627", "01:20:04", "⑥", "금 가격 전망 및 자극적 농담 발언", "중"], ["월간 곽수종", "260627", "01:40:37", "⑥", "비속어 사용 발언", "상"], ["월간 곽수종", "260627", "01:42:58~01:46:56", "④", "개인적인 일화(캐디 봉사) 삼천포 발언", "하"], ["월간 곽수종", "260627", "01:50:59", "⑥", "정치 관련 발언 시사", "중"], ["월간 곽수종", "260627", "01:38:48", "⑥", "정치인 비하 및 자극적 표현", "상"], ["곽수종 실전반 수업", "260629", "00:30", "⑦", "수강생 질문 답변 예고 양방향 구간", "하"], ["곽수종 실전반 수업", "260629", "01:57~04:56", "⑦", "질문 답변 양방향 소통 구간", "하"], ["곽수종 실전반 수업", "260629", "09:52~10:43", "⑦", "질의응답 구간", "하"], ["곽수종 실전반 수업", "260629", "11:31", "⑦", "수강생 질문 언급 양방향 구간", "하"], ["곽수종 실전반 수업", "260629", "35:52", "⑦", "수강생 질문 언급 양방향 구간", "하"], ["곽수종 실전반 수업", "260629", "01:06:33", "⑦", "수강생 질문 언급 양방향 구간", "하"], ["곽수종 실전반 수업", "260629", "01:12:05", "⑦", "답변 요청하는 양방향 소통 발언", "하"], ["곽수종 실전반 수업", "260629", "01:17:30", "①", "특정 기업 검색·종목 언급 구간", "상"], ["곽수종 실전반 수업", "260629", "01:18:45~01:19:03", "④", "개인 컨디션 관련 사담", "하"], ["곽수종 실전반 수업", "260629", "01:21:53~01:22:24", "⑥", "엔비디아 가상 수익률 과장 계산 발언", "상"], ["곽수종 실전반 수업", "260629", "01:24:05", "①", "특정 투자 권장 발언", "상"]]');
+// SAVE_DATA_END
+const SAMPLE_DATA = JSON.parse(JSON.stringify(data));
+
+// ── 상태 ──
+let activeFilter = null;
+let bulkTab = 'paste', bulkPdf = null, bulkImgs = [];
+let parsedItems = [], reviewResult = null, scriptIssues = [];
+let scTab = 'text', scPdf = null, scImgs = [];
+
+// ── API ──
+async function callClaude(prompt, max=2000) {
+  const r = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:max,messages:[{role:'user',content:prompt}]})
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'API error '+r.status);}
+  const d=await r.json();
+  return d.content.map(c=>c.text||'').join('');
+}
+async function callClaudeMulti(parts, max=4000) {
+  const hasDoc = parts.some(p=>p.type==='document');
+  const headers = {'Content-Type':'application/json'};
+  if(hasDoc) headers['anthropic-beta']='pdfs-2024-09-25';
+  const r = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers,
+    body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:max,messages:[{role:'user',content:parts}]})
+  });
+  if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error?.message||'API error '+r.status);}
+  const d=await r.json();
+  return d.content.map(c=>c.text||'').join('');
+}
+function extractJSON(raw) {
+  const clean = raw.replace(/```json|```/g,'').trim();
+  const m = clean.match(/\[[\s\S]*\]/);
+  return JSON.parse(m ? m[0] : clean);
+}
+
+// ── 저장 ──
+function markUnsaved(){document.getElementById('saveBtn').style.display='';}
+function saveData(){
+  const src = document.documentElement.outerHTML;
+  const s = src.indexOf('// SAVE_DATA_START'), e = src.indexOf('// SAVE_DATA_END');
+  if(s<0||e<0){showToast('저장 마커를 찾을 수 없습니다');return;}
+  const line = `let data = JSON.parse('${JSON.stringify(data).replace(/\\/g,'\\\\').replace(/'/g,"\\'")}');`;
+  const out = src.slice(0,s)+'// SAVE_DATA_START\n'+line+'\n'+src.slice(e);
+  const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([out],{type:'text/html'})),download:'compliance_archiver.html'});
+  a.click(); URL.revokeObjectURL(a.href);
+  showToast('💾 저장 완료 — 다운로드된 파일로 교체해주세요');
+  document.getElementById('saveBtn').style.display='none';
+}
+function resetData(){
+  if(!confirm('모든 데이터를 초기화할까요?')) return;
+  data=[...SAMPLE_DATA]; markUnsaved(); buildSidebar(); renderTable();
+  showToast('↺ 초기화되었습니다');
+}
+
+// ── 렌더링 ──
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function getLectures(){return [...new Set(data.map(r=>r[0]).filter(Boolean))];}
+function buildSidebar(){
+  const total=data.length;
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statSub').textContent='건 아카이빙됨';
+  const cl=document.getElementById('courseList');
+  const lectures=getLectures();
+  cl.innerHTML=`<button class="course-btn${!activeFilter?' active':''}" onclick="setFilter(null)">전체 (${total})</button>`
+    +lectures.map(l=>{
+      const cnt=data.filter(r=>r[0]===l).length;
+      return `<button class="course-btn${activeFilter===l?' active':''}" onclick="setFilter('${l.replace(/'/g,"\\'")}')">
+        ${l} (${cnt})</button>`;
+    }).join('');
+  // datalists
+  ['lectureListB','lectureListRv','lectureListSc','lectureListF'].forEach(id=>{
+    const dl=document.getElementById(id);
+    if(dl) dl.innerHTML=lectures.map(l=>`<option value="${l}">`).join('');
+  });
+}
+function setFilter(f){activeFilter=f;buildSidebar();renderTable();}
+function renderTable(){
+  const q=(document.getElementById('searchInput').value||'').toLowerCase();
+  let rows=data.filter(r=>!activeFilter||r[0]===activeFilter);
+  if(q) rows=rows.filter(r=>r.some(c=>String(c).toLowerCase().includes(q)));
+  document.getElementById('tableMeta').textContent=`총 ${rows.length}건 표시 중`;
+  const cat=CATS;
+  document.getElementById('tableBody').innerHTML=rows.map((r,i)=>{
+    const ci=data.indexOf(r);
+    const c=cat[r[3]]||{label:r[3],color:'#888',desc:'',law:''};
+    const ri=RISK_INFO[r[5]]||{};
+    return `<tr>
+      <td style="color:var(--text3)">${i+1}</td>
+      <td style="font-weight:500">${r[0]}</td>
+      <td style="color:var(--text2);font-family:monospace">${r[1]}</td>
+      <td style="font-family:monospace">${r[2]}</td>
+      <td>
+        <span class="tag has-tip" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30">
+          <span class="tag-dot" style="background:${c.color}"></span>${r[3]}
+          <div class="tip">
+            <div class="tip-head" style="color:${c.color}">${r[3]} ${c.label}</div>
+            <div class="tip-desc">${c.desc}</div>
+            <div class="tip-law">${c.law}</div>
+          </div>
+        </span>
+      </td>
+      <td>${r[4]}</td>
+      <td>
+        <span class="has-tip" style="display:inline-block">
+          <span class="risk-badge risk-${r[5]}">${r[5]}</span>
+          ${ri.desc?`<div class="tip"><div class="tip-head" style="color:${ri.color}">${ri.desc}</div><div class="tip-law">⚖ ${ri.penalty}</div></div>`:''}
+        </span>
+      </td>
+      <td><button class="del-btn" onclick="delEntry(${ci})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+function delEntry(i){
+  if(!confirm('삭제할까요?')) return;
+  data.splice(i,1); markUnsaved(); buildSidebar(); renderTable();
+  showToast('🗑 삭제되었습니다');
+}
+
+// ── 엑셀 ──
+function exportXLSX(){
+  const ws=XLSX.utils.aoa_to_sheet([['강의명','날짜','타임스탬프','위험유형','제거내용요약','위험도'],...data]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'아카이브');
+  XLSX.writeFile(wb,'compliance_archive.xlsx');
+}
+
+// ── 직접 입력 ──
+function openFormModal(){
+  buildSidebar();
+  document.getElementById('formOverlay').classList.add('open');
+}
+function closeFormModal(){document.getElementById('formOverlay').classList.remove('open');}
+function addEntry(){
+  const l=document.getElementById('f_lecture').value.trim();
+  const d2=document.getElementById('f_date').value.trim();
+  const ts=document.getElementById('f_ts').value.trim();
+  const cat=document.getElementById('f_cat').value;
+  const content=document.getElementById('f_content').value.trim();
+  const risk=document.getElementById('f_risk').value;
+  if(!l||!content){showToast('강의명과 내용은 필수입니다');return;}
+  data.push([l,d2,ts,cat,content,risk]);
+  markUnsaved(); buildSidebar(); renderTable(); closeFormModal();
+  showToast('✅ 추가되었습니다');
+}
+
+// ── 메모 붙여넣기 ──
+function openBulkModal(){
+  parsedItems=[]; bulkPdf=null; bulkImgs=[]; bulkTab='paste';
+  ['b_lecture','b_date','b_memo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('bStatus').textContent='';
+  document.getElementById('bStatus').className='parse-status';
+  document.getElementById('bPreview').innerHTML='';
+  document.getElementById('bProgress').style.display='none';
+  document.getElementById('bConfirmBtn').style.display='none';
+  document.getElementById('bParseBtn').innerHTML='✦ AI 파싱·분류';
+  document.getElementById('bPdfName').textContent='';
+  document.getElementById('bUploadZone').classList.remove('has-file');
+  document.getElementById('bImgGrid').innerHTML='';
+  switchBulkTab('paste');
+  buildSidebar();
+  document.getElementById('bulkOverlay').classList.add('open');
+}
+function closeBulkModal(){document.getElementById('bulkOverlay').classList.remove('open');}
+function switchBulkTab(t){
+  bulkTab=t;
+  ['paste','pdf','img'].forEach(k=>{
+    document.getElementById('bpanel-'+k).classList.toggle('active',k===t);
+    document.getElementById('btab-'+k).classList.toggle('active',k===t);
+  });
+  parsedItems=[];
+  document.getElementById('bPreview').innerHTML='';
+  document.getElementById('bStatus').textContent='';
+  document.getElementById('bConfirmBtn').style.display='none';
+}
+function loadBulkPdf(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{bulkPdf=e.target.result.split(',')[1];document.getElementById('bPdfName').textContent='📎 '+file.name;document.getElementById('bUploadZone').classList.add('has-file');};
+  r.readAsDataURL(file);
+}
+function addBulkImgs(files){
+  Array.from(files).forEach(f=>bulkImgs.push(f));
+  renderBulkImgGrid();
+}
+function renderBulkImgGrid(){
+  document.getElementById('bImgGrid').innerHTML=bulkImgs.map((f,i)=>{
+    const url=URL.createObjectURL(f);
+    return `<div class="img-thumb"><img src="${url}"><button onclick="bulkImgs.splice(${i},1);renderBulkImgGrid()">✕</button></div>`;
+  }).join('');
+}
+
+const PARSE_PROMPT = (lecture, date) => `당신은 유사투자자문업 컴플라이언스 전문가입니다.
+아래는 편집자가 작성한 컴플라이언스 검토 메모입니다. 자유 형식으로 작성되어 있습니다.
+예시 형식: "40:23 소선업에서 반노제 삭제", "53:57~1:03:24 질의응답 구간", "47:34 애널리스트 도움 받았고요 삭제"
+
+강의명: ${lecture} / 날짜: ${date||'미기재'}
+
+메모에서 컴플라이언스 제거 구간을 모두 파싱하여 JSON 배열로만 반환하세요 (마크다운 없이):
+[{"ts":"40:23","summary":"소선업 반노제 발언","cat":"②","risk":"중"}]
+- ts: 타임스탬프 그대로
+- summary: 20자 이내 요약
+- cat: ①종목추천 ②시황단정 ③자산배분 ④개인신상 ⑤제3자인용 ⑥심리자극 ⑦양방향소통
+- risk: 상/중/하`;
+
+async function runBulkParse(){
+  const lecture=document.getElementById('b_lecture').value.trim();
+  const date=document.getElementById('b_date').value.trim();
+  if(!lecture){showToast('강의명을 입력해주세요');return;}
+  if(bulkTab==='paste'&&!document.getElementById('b_memo').value.trim()){showToast('메모를 입력해주세요');return;}
+  if(bulkTab==='pdf'&&!bulkPdf){showToast('PDF를 업로드해주세요');return;}
+  if(bulkTab==='img'&&!bulkImgs.length){showToast('이미지를 업로드해주세요');return;}
+
+  const btn=document.getElementById('bParseBtn');
+  const status=document.getElementById('bStatus');
+  const prog=document.getElementById('bProgress');
+  const bar=document.getElementById('bBar');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 분석 중...';
+  status.className='parse-status'; status.textContent='AI가 분석 중...';
+  prog.style.display='block'; bar.style.width='30%';
+  document.getElementById('bPreview').innerHTML='';
+  document.getElementById('bConfirmBtn').style.display='none';
+  parsedItems=[];
+
+  try {
+    let raw;
+    const prompt=PARSE_PROMPT(lecture,date);
+    if(bulkTab==='paste'){
+      const memo=document.getElementById('b_memo').value.trim();
+      bar.style.width='60%';
+      raw=await callClaude(`${prompt}\n\n메모:\n${memo}`, 3000);
+    } else if(bulkTab==='pdf'){
+      bar.style.width='60%';
+      raw=await callClaudeMulti([
+        {type:'document',source:{type:'base64',media_type:'application/pdf',data:bulkPdf}},
+        {type:'text',text:prompt}
+      ], 3000);
+    } else {
+      bar.style.width='60%';
+      const imgParts=await Promise.all(bulkImgs.map(f=>new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=e=>res({type:'image',source:{type:'base64',media_type:f.type,data:e.target.result.split(',')[1]}});
+        r.onerror=rej; r.readAsDataURL(f);
+      })));
+      raw=await callClaudeMulti([...imgParts,{type:'text',text:prompt}], 3000);
+    }
+    bar.style.width='100%';
+    setTimeout(()=>prog.style.display='none',300);
+    parsedItems=extractJSON(raw);
+    if(!parsedItems.length){
+      status.className='parse-status err'; status.textContent='파싱된 항목이 없습니다. 메모 형식을 확인해주세요.';
+    } else {
+      status.className='parse-status ok'; status.textContent=`✓ ${parsedItems.length}건 파싱 완료`;
+      document.getElementById('bConfirmBtn').style.display='';
+      document.getElementById('bPreview').innerHTML=parsedItems.map((it,i)=>{
+        const c=CATS[it.cat]||{color:'#888'};
+        return `<div class="preview-item">
+          <input type="checkbox" id="bck${i}" checked>
+          <span class="preview-ts">${it.ts||'-'}</span>
+          <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30;flex-shrink:0">${it.cat}</span>
+          <span class="preview-summary">${it.summary}</span>
+          <span class="risk-badge risk-${it.risk}" style="flex-shrink:0">${it.risk}</span>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    prog.style.display='none';
+    status.className='parse-status err'; status.textContent='오류: '+e.message;
+  } finally {
+    btn.disabled=false; btn.innerHTML='✦ 다시 파싱';
+  }
+}
+function confirmBulk(){
+  const lecture=document.getElementById('b_lecture').value.trim();
+  const date=document.getElementById('b_date').value.trim();
+  const checked=parsedItems.filter((_,i)=>document.getElementById('bck'+i)?.checked);
+  if(!checked.length){showToast('선택된 항목이 없습니다');return;}
+  checked.forEach(it=>data.push([lecture,date,it.ts||'-',it.cat,it.summary,it.risk]));
+  markUnsaved(); buildSidebar(); renderTable(); closeBulkModal();
+  showToast(`✅ ${checked.length}건 추가되었습니다`);
+}
+
+// ── 컴플 검토 ──
+function openReviewModal(){
+  reviewResult=null;
+  ['rv_lecture','rv_ts','rv_content'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('rvResult').innerHTML='';
+  document.getElementById('rvProgress').style.display='none';
+  document.getElementById('rvAddBtn').style.display='none';
+  buildSidebar();
+  document.getElementById('reviewOverlay').classList.add('open');
+}
+function closeReviewModal(){document.getElementById('reviewOverlay').classList.remove('open');}
+async function runReview(){
+  const content=document.getElementById('rv_content').value.trim();
+  if(!content){showToast('발언을 입력해주세요');return;}
+  const prog=document.getElementById('rvProgress');
+  const bar=document.getElementById('rvBar');
+  prog.style.display='block'; bar.style.width='50%';
+  document.getElementById('rvResult').innerHTML='';
+  document.getElementById('rvAddBtn').style.display='none';
+  try {
+    const raw=await callClaude(`${COMPLIANCE_STANDARD}\n\n아래 발언을 검토하세요:\n"${content}"\n\nJSON으로만 답하세요: {"verdict":"제거"|"주의"|"문제없음","cat":"①","risk":"상","reason":"이유"}`,1000);
+    bar.style.width='100%';
+    setTimeout(()=>prog.style.display='none',300);
+    reviewResult=extractJSON(raw);
+    const r=reviewResult;
+    const vColor=r.verdict==='제거'?'var(--high)':r.verdict==='주의'?'var(--mid)':'var(--low)';
+    const c=CATS[r.cat]||{label:r.cat,color:'#888'};
+    document.getElementById('rvResult').innerHTML=`
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px">
+        <div style="font-size:18px;font-weight:800;color:${vColor};margin-bottom:8px">${r.verdict}</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30">
+            <span class="tag-dot" style="background:${c.color}"></span>${r.cat}</span>
+          <span class="risk-badge risk-${r.risk}">${r.risk}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text2)">${r.reason}</div>
+      </div>`;
+    if(r.verdict!=='문제없음') document.getElementById('rvAddBtn').style.display='';
+  } catch(e) {
+    prog.style.display='none';
+    document.getElementById('rvResult').innerHTML=`<div style="color:var(--high)">오류: ${e.message}</div>`;
+  }
+}
+function addFromReview(){
+  if(!reviewResult) return;
+  const l=document.getElementById('rv_lecture').value.trim();
+  const ts=document.getElementById('rv_ts').value.trim();
+  const content=document.getElementById('rv_content').value.trim().slice(0,40);
+  data.push([l||'-','-',ts||'-',reviewResult.cat,content,reviewResult.risk]);
+  markUnsaved(); buildSidebar(); renderTable(); closeReviewModal();
+  showToast('✅ 추가되었습니다');
+}
+
+// ── 스크립트 검토 ──
+function openScriptModal(){
+  scriptIssues=[]; scPdf=null; scImgs=[]; scTab='text';
+  ['sc_lecture','sc_date','sc_script'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('scStatus').textContent='';
+  document.getElementById('scStatus').className='parse-status';
+  document.getElementById('scResults').innerHTML='';
+  document.getElementById('scProgress').style.display='none';
+  document.getElementById('scAddBtn').style.display='none';
+  document.getElementById('scNote').textContent='';
+  document.getElementById('scScanBtn').innerHTML='✦ AI 스캔';
+  document.getElementById('scPdfName').textContent='';
+  document.getElementById('scUploadZone').classList.remove('has-file');
+  document.getElementById('scImgGrid').innerHTML='';
+  switchScriptTab('text');
+  buildSidebar();
+  document.getElementById('scriptOverlay').classList.add('open');
+}
+function closeScriptModal(){document.getElementById('scriptOverlay').classList.remove('open');}
+function switchScriptTab(t){
+  scTab=t;
+  ['text','pdf','img'].forEach(k=>{
+    document.getElementById('scpanel-'+k).classList.toggle('active',k===t);
+    document.getElementById('sctab-'+k).classList.toggle('active',k===t);
+  });
+  scriptIssues=[];
+  document.getElementById('scResults').innerHTML='';
+  document.getElementById('scStatus').textContent='';
+  document.getElementById('scAddBtn').style.display='none';
+}
+function loadScPdf(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{scPdf=e.target.result.split(',')[1];document.getElementById('scPdfName').textContent='📎 '+file.name;document.getElementById('scUploadZone').classList.add('has-file');};
+  r.readAsDataURL(file);
+}
+function addScImgs(files){
+  Array.from(files).forEach(f=>scImgs.push(f));
+  document.getElementById('scImgGrid').innerHTML=scImgs.map((f,i)=>{
+    const url=URL.createObjectURL(f);
+    return `<div class="img-thumb"><img src="${url}"><button onclick="scImgs.splice(${i},1);addScImgs([])">✕</button></div>`;
+  }).join('');
+}
+const SCAN_PROMPT = `당신은 유사투자자문업 컴플라이언스 전문가입니다.
+아래 강의 내용에서 컴플 위반 소지가 있는 구간을 찾아 JSON 배열로만 반환하세요 (마크다운 없이):
+[{"ts":"00:00","quote":"실제 발언 원문 그대로","cat":"①","risk":"상","reason":"위반 이유 (법령 포함)"}]
+【규칙】문서에 실제 존재하는 발언만 인용, 없는 내용 생성 금지, 확실하지 않으면 포함하지 말 것
+기준: ${COMPLIANCE_STANDARD}`;
+
+async function runScriptScan(){
+  const lecture=document.getElementById('sc_lecture').value.trim();
+  if(!lecture){showToast('강의명을 입력해주세요');return;}
+  if(scTab==='text'&&!document.getElementById('sc_script').value.trim()){showToast('스크립트를 입력해주세요');return;}
+  if(scTab==='pdf'&&!scPdf){showToast('PDF를 업로드해주세요');return;}
+  if(scTab==='img'&&!scImgs.length){showToast('이미지를 업로드해주세요');return;}
+
+  const btn=document.getElementById('scScanBtn');
+  const status=document.getElementById('scStatus');
+  const prog=document.getElementById('scProgress');
+  const bar=document.getElementById('scBar');
+  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> 스캔 중...';
+  status.className='parse-status'; status.textContent='AI가 분석 중...';
+  prog.style.display='block'; bar.style.width='30%';
+  document.getElementById('scResults').innerHTML='';
+  document.getElementById('scAddBtn').style.display='none';
+  scriptIssues=[];
+
+  try {
+    let raw;
+    bar.style.width='60%';
+    if(scTab==='text'){
+      raw=await callClaude(`${SCAN_PROMPT}\n\n스크립트:\n${document.getElementById('sc_script').value.trim()}`,8000);
+    } else if(scTab==='pdf'){
+      raw=await callClaudeMulti([{type:'document',source:{type:'base64',media_type:'application/pdf',data:scPdf}},{type:'text',text:SCAN_PROMPT}],8000);
+    } else {
+      const imgParts=await Promise.all(scImgs.map(f=>new Promise((res,rej)=>{
+        const r=new FileReader();
+        r.onload=e=>res({type:'image',source:{type:'base64',media_type:f.type,data:e.target.result.split(',')[1]}});
+        r.onerror=rej; r.readAsDataURL(f);
+      })));
+      raw=await callClaudeMulti([...imgParts,{type:'text',text:SCAN_PROMPT}],8000);
+    }
+    bar.style.width='100%';
+    setTimeout(()=>prog.style.display='none',300);
+    scriptIssues=extractJSON(raw);
+    if(!scriptIssues.length){
+      status.className='parse-status ok'; status.textContent='✓ 문제 구간이 발견되지 않았습니다.';
+    } else {
+      status.className='parse-status';status.textContent='';
+      const high=scriptIssues.filter(i=>i.risk==='상').length;
+      document.getElementById('scNote').textContent=`총 ${scriptIssues.length}건 (제거 ${high}건 / 주의 ${scriptIssues.length-high}건)`;
+      document.getElementById('scAddBtn').style.display='';
+      document.getElementById('scResults').innerHTML=scriptIssues.map((it,i)=>{
+        const c=CATS[it.cat]||{color:'#888'};
+        return `<div class="result-item">
+          <input type="checkbox" id="scck${i}" checked>
+          <div class="result-body">
+            <div class="result-meta">
+              <span class="result-ts">${it.ts||'-'}</span>
+              <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30;padding:2px 7px;font-size:11px">${it.cat}</span>
+              <span class="risk-badge risk-${it.risk}">${it.risk}</span>
+            </div>
+            <div class="result-quote">"${it.quote}"</div>
+            <div class="result-reason">${it.reason}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {
+    prog.style.display='none';
+    status.className='parse-status err'; status.textContent='오류: '+e.message;
+  } finally {
+    btn.disabled=false; btn.innerHTML='✦ 다시 스캔';
+  }
+}
+function addScriptItems(){
+  const lecture=document.getElementById('sc_lecture').value.trim();
+  const date=document.getElementById('sc_date').value.trim();
+  const toAdd=scriptIssues.filter((_,i)=>document.getElementById('scck'+i)?.checked);
+  if(!toAdd.length){showToast('선택된 항목이 없습니다');return;}
+  toAdd.forEach(it=>data.push([lecture,date,it.ts||'-',it.cat,it.quote.slice(0,40),it.risk]));
+  markUnsaved(); buildSidebar(); renderTable(); closeScriptModal();
+  showToast(`✅ ${toAdd.length}건 추가되었습니다`);
+}
+
+// ── 초기화 ──
+buildSidebar();
+renderTable();
+</script>
+</body>
+</html>
