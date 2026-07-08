@@ -419,36 +419,45 @@ let isLoading = false;
 // ── Sheets API ──
 async function loadFromSheets() {
   try {
-    const r = await fetch(SCRIPT_URL);
+    const r = await fetch(SCRIPT_URL, { redirect: 'follow' });
     const json = await r.json();
     data = json.data || [];
     buildSidebar();
     renderTable();
     document.getElementById('loadingMsg').style.display = 'none';
   } catch(e) {
-    document.getElementById('loadingMsg').textContent = '데이터 로딩 실패. 새로고침해주세요.';
+    document.getElementById('loadingMsg').textContent = '데이터 로딩 실패. 새로고침해주세요. (' + e.message + ')';
   }
 }
 
 async function addToSheets(row) {
-  await fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'add', row })
-  });
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      body: JSON.stringify({ action: 'add', row })
+    });
+  } catch(e) { console.error('add failed', e); }
 }
 
 async function deleteFromSheets(rowIndex) {
-  await fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'delete', rowIndex })
-  });
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      body: JSON.stringify({ action: 'delete', rowIndex })
+    });
+  } catch(e) { console.error('delete failed', e); }
 }
 
 async function bulkAddToSheets(rows) {
-  await fetch(SCRIPT_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'bulkAdd', rows })
-  });
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      body: JSON.stringify({ action: 'bulkAdd', rows })
+    });
+  } catch(e) { console.error('bulkAdd failed', e); }
 }
 
 // ── 상태 ──
