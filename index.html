@@ -489,9 +489,7 @@ async function callClaudeMulti(parts, max=4000) {
   if (!d.success) throw new Error(d.error || 'AI 호출 실패');
   return d.result;
 }
-function extractJSON_unused(
-  return d.content.map(c=>c.text||'').join('');
-}
+
 function extractJSON(raw) {
   const clean = raw.replace(/```json|```/g,'').trim();
   const m = clean.match(/\[[\s\S]*\]/);
