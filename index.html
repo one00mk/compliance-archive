@@ -646,12 +646,23 @@ function renderBulkImgGrid(){
   }).join('');
 }
 
-const PARSE_PROMPT = (lecture, date) => `당신은 유사투자자문업 컴플라이언스 전문가입니다.
+function getFewShotExamples(lecture, maxExamples=8){
+  if(!data || !data.length) return '';
+  const sameLecture = data.filter(r=>r[0]===lecture);
+  const others = data.filter(r=>r[0]!==lecture);
+  const picked = [...sameLecture.slice(-maxExamples)];
+  if(picked.length < maxExamples) picked.push(...others.slice(-(maxExamples-picked.length)));
+  if(!picked.length) return '';
+  const lines = picked.map(r=>`{"ts":"${r[2]}","summary":"${r[4]}","cat":"${r[3]}","risk":"${r[5]}"}`).join('\n');
+  return `\n\n다음은 과거에 실제로 분류된 예시입니다. 분류 기준과 표현 스타일을 참고하세요:\n${lines}\n`;
+}
+
+const PARSE_PROMPT = (lecture, date, examples) => `당신은 유사투자자문업 컴플라이언스 전문가입니다.
 아래는 편집자가 작성한 컴플라이언스 검토 메모입니다. 자유 형식으로 작성되어 있습니다.
 예시 형식: "40:23 소선업에서 반노제 삭제", "53:57~1:03:24 질의응답 구간", "47:34 애널리스트 도움 받았고요 삭제"
 
 강의명: ${lecture} / 날짜: ${date||'미기재'}
-
+${examples||''}
 메모에서 컴플라이언스 제거 구간을 모두 파싱하여 JSON 배열로만 반환하세요 (마크다운 없이):
 [{"ts":"40:23","summary":"소선업 반노제 발언","cat":"②","risk":"중"}]
 - ts: 타임스탬프 그대로
@@ -680,7 +691,8 @@ async function runBulkParse(){
 
   try {
     let raw;
-    const prompt=PARSE_PROMPT(lecture,date);
+    const examples=getFewShotExamples(lecture);
+    const prompt=PARSE_PROMPT(lecture,date,examples);
     if(bulkTab==='paste'){
       const memo=document.getElementById('b_memo').value.trim();
       bar.style.width='60%';
@@ -758,7 +770,9 @@ async function runReview(){
   document.getElementById('rvResult').innerHTML='';
   document.getElementById('rvAddBtn').style.display='none';
   try {
-    const raw=await callClaude(`${COMPLIANCE_STANDARD}\n\n아래 발언을 검토하세요:\n"${content}"\n\nJSON으로만 답하세요: {"verdict":"제거"|"주의"|"문제없음","cat":"①","risk":"상","reason":"이유"}`,1000);
+    const lecture=document.getElementById('rv_lecture').value.trim();
+    const examples=getFewShotExamples(lecture);
+    const raw=await callClaude(`${COMPLIANCE_STANDARD}${examples}\n\n아래 발언을 검토하세요:\n"${content}"\n\nJSON으로만 답하세요: {"verdict":"제거"|"주의"|"문제없음","cat":"①","risk":"상","reason":"이유"}`,1000);
     bar.style.width='100%';
     setTimeout(()=>prog.style.display='none',300);
     reviewResult=extractJSON(raw);
