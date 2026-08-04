@@ -725,15 +725,21 @@ async function runBulkParse(){
       status.className='parse-status ok'; status.textContent=`✓ ${parsedItems.length}건 파싱 완료`;
       document.getElementById('bConfirmBtn').style.display='';
       document.getElementById('bPreview').innerHTML=parsedItems.map((it,i)=>{
-        const c=CATS[it.cat]||{color:'#888'};
-        return `<div class="preview-item">
-          <input type="checkbox" id="bck${i}" checked>
-          <span class="preview-ts">${it.ts||'-'}</span>
-          <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30;flex-shrink:0">${it.cat}</span>
-          <span class="preview-summary">${it.summary}</span>
-          <span class="risk-badge risk-${it.risk}" style="flex-shrink:0">${it.risk}</span>
+        const catOpts=Object.keys(CATS).map(k=>`<option value="${k}"${it.cat===k?' selected':''}>${k} ${CATS[k].label}</option>`).join('');
+        const riskOpts=['상','중','하'].map(r=>`<option value="${r}"${it.risk===r?' selected':''}>${r}</option>`).join('');
+        return `<div class="preview-item-wrap" style="display:flex;flex-direction:column;gap:2px">
+          <div class="preview-item">
+            <input type="checkbox" id="bck${i}" checked>
+            <span class="preview-ts">${it.ts||'-'}</span>
+            <select id="bcat${i}" onchange="parsedItems[${i}].cat=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px;flex-shrink:0">${catOpts}</select>
+            <span class="preview-summary">${it.summary}</span>
+            <select id="brisk${i}" onchange="parsedItems[${i}].risk=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px;flex-shrink:0">${riskOpts}</select>
+          </div>
+          <div id="bdup${i}" style="color:#FF9040;font-size:11px;padding-left:4px"></div>
         </div>`;
       }).join('');
+      checkBulkDuplicates();
+    }
     }
   } catch(e) {
     prog.style.display='none';
@@ -741,6 +747,13 @@ async function runBulkParse(){
   } finally {
     btn.disabled=false; btn.innerHTML='✦ 다시 파싱';
   }
+  function checkBulkDuplicates(){
+  const lecture=document.getElementById('b_lecture').value.trim();
+  parsedItems.forEach((it,i)=>{
+    const dup=data.find(r=>r[0]===lecture && (r[2]===it.ts || (r[4]&&it.summary&&(it.summary.includes(r[4])||r[4].includes(it.summary.slice(0,10))))));
+    const el=document.getElementById('bdup'+i);
+    if(el) el.textContent = dup ? `⚠️ 이미 아카이브에 유사 항목 있음 (${dup[2]} · "${dup[4]}")` : '';
+  });
 }
 function confirmBulk(){
   const lecture=document.getElementById('b_lecture').value.trim();
@@ -770,17 +783,20 @@ async function runReview(){
   if(!content){showToast('발언을 입력해주세요');return;}
   const prog=document.getElementById('rvProgress');
   const bar=document.getElementById('rvBar');
-  prog.style.display='block'; bar.style.width='50%';
-  document.getElementById('rvResult').innerHTML='';
-  document.getElementById('rvAddBtn').style.display='none';
-  try {
-    const lecture=document.getElementById('rv_lecture').value.trim();
-    const examples=getFewShotExamples(lecture);
-    const raw=await callClaude(`${COMPLIANCE_STANDARD}${examples}\n\n아래 발언을 검토하세요:\n"${content}"\n\nJSON으로만 답하세요: {"verdict":"제거"|"주의"|"문제없음","cat":"①","risk":"상","reason":"이유"}`,1000);
-    bar.style.width='100%';
-    setTimeout(()=>prog.style.display='none',300);
-    reviewResult=extractJSON(raw);
-    const r=reviewResult;
+  const rvCatOpts=Object.keys(CATS).map(k=>`<option value="${k}"${r.cat===k?' selected':''}>${k} ${CATS[k].label}</option>`).join('');
+    const rvRiskOpts=['상','중','하'].map(x=>`<option value="${x}"${r.risk===x?' selected':''}>${x}</option>`).join('');
+    document.getElementById('rvResult').innerHTML=`
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px">
+        <div style="font-size:18px;font-weight:800;color:${vColor};margin-bottom:8px">${r.verdict}</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <select id="rvCat" onchange="reviewResult.cat=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px">${rvCatOpts}</select>
+          <select id="rvRisk" onchange="reviewResult.risk=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px">${rvRiskOpts}</select>
+        </div>
+        <div style="font-size:13px;color:var(--text2)">${r.reason}</div>
+        <div id="rvDup" style="color:#FF9040;font-size:11px;margin-top:8px"></div>
+      </div>`;
+    if(r.verdict!=='문제없음') document.getElementById('rvAddBtn').style.display='';
+    checkReviewDuplicate();
     const vColor=r.verdict==='제거'?'var(--high)':r.verdict==='주의'?'var(--mid)':'var(--low)';
     const c=CATS[r.cat]||{label:r.cat,color:'#888'};
     document.getElementById('rvResult').innerHTML=`
@@ -798,6 +814,14 @@ async function runReview(){
     prog.style.display='none';
     document.getElementById('rvResult').innerHTML=`<div style="color:var(--high)">오류: ${e.message}</div>`;
   }
+}function checkReviewDuplicate(){
+  if(!reviewResult) return;
+  const lecture=document.getElementById('rv_lecture').value.trim();
+  const ts=document.getElementById('rv_ts').value.trim();
+  const content=document.getElementById('rv_content').value.trim();
+  const dup=data.find(r=>r[0]===lecture && (r[2]===ts || (r[4]&&content&&(content.includes(r[4])||r[4].includes(content.slice(0,20))))));
+  const el=document.getElementById('rvDup');
+  if(el) el.textContent = dup ? `⚠️ 이미 아카이브에 유사 항목 있음 (${dup[2]} · "${dup[4]}")` : '';
 }
 function addFromReview(){
   if(!reviewResult) return;
