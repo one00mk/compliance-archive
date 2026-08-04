@@ -904,20 +904,23 @@ async function runScriptScan(){
       document.getElementById('scNote').textContent=`총 ${scriptIssues.length}건 (제거 ${high}건 / 주의 ${scriptIssues.length-high}건)`;
       document.getElementById('scAddBtn').style.display='';
       document.getElementById('scResults').innerHTML=scriptIssues.map((it,i)=>{
-        const c=CATS[it.cat]||{color:'#888'};
+        const catOpts=Object.keys(CATS).map(k=>`<option value="${k}"${it.cat===k?' selected':''}>${k} ${CATS[k].label}</option>`).join('');
+        const riskOpts=['상','중','하'].map(r=>`<option value="${r}"${it.risk===r?' selected':''}>${r}</option>`).join('');
         return `<div class="result-item">
           <input type="checkbox" id="scck${i}" checked>
           <div class="result-body">
             <div class="result-meta">
               <span class="result-ts">${it.ts||'-'}</span>
-              <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30;padding:2px 7px;font-size:11px">${it.cat}</span>
-              <span class="risk-badge risk-${it.risk}">${it.risk}</span>
+              <select id="sccat${i}" onchange="scriptIssues[${i}].cat=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px">${catOpts}</select>
+              <select id="scrisk${i}" onchange="scriptIssues[${i}].risk=this.value" style="font-size:11px;padding:2px 4px;border-radius:4px">${riskOpts}</select>
             </div>
             <div class="result-quote">"${it.quote}"</div>
             <div class="result-reason">${it.reason}</div>
+            <div id="scdup${i}" style="color:#FF9040;font-size:11px;margin-top:6px"></div>
           </div>
         </div>`;
       }).join('');
+      checkScriptDuplicates();
     }
   } catch(e) {
     prog.style.display='none';
@@ -925,6 +928,13 @@ async function runScriptScan(){
   } finally {
     btn.disabled=false; btn.innerHTML='✦ 다시 스캔';
   }
+}function checkScriptDuplicates(){
+  const lecture=document.getElementById('sc_lecture').value.trim();
+  scriptIssues.forEach((it,i)=>{
+    const dup=data.find(r=>r[0]===lecture && (r[2]===it.ts || (r[4]&&it.quote&&(it.quote.includes(r[4])||r[4].includes(it.quote.slice(0,20))))));
+    const el=document.getElementById('scdup'+i);
+    if(el) el.textContent = dup ? `⚠️ 이미 아카이브에 유사 항목 있음 (${dup[2]} · "${dup[4]}")` : '';
+  });
 }
 function addScriptItems(){
   const lecture=document.getElementById('sc_lecture').value.trim();
