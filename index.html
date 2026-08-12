@@ -150,6 +150,8 @@ tr:hover td{background:var(--bg3)}
   <div class="divider"></div>
   <div class="filter-label">과정 필터</div>
   <div class="course-list" id="courseList"></div>
+  <div class="filter-label" id="dateFilterLabel" style="display:none">날짜 필터</div>
+  <div class="course-list" id="dateList"></div>
   <div class="spacer"></div>
   <button class="btn btn-primary" id="saveBtn" onclick="saveData()">💾 저장 (파일 교체)</button>
   <button class="btn btn-outline" onclick="openBulkModal()" style="margin-top:4px">⚡ 메모 붙여넣기</button>
@@ -467,6 +469,7 @@ async function bulkAddToSheets(rows) {
 
 // ── 상태 ──
 let activeFilter = null;
+let activeDateFilter = null;
 let bulkTab = 'paste', bulkPdf = null, bulkImgs = [];
 let parsedItems = [], reviewResult = null, scriptIssues = [];
 let scTab = 'text', scPdf = null, scImgs = [];
@@ -531,11 +534,29 @@ function buildSidebar(){
     const dl=document.getElementById(id);
     if(dl) dl.innerHTML=lectures.map(l=>`<option value="${l}">`).join('');
   });
+  // 날짜 필터 (특정 강의 선택 시에만 표시)
+  const dateLabel=document.getElementById('dateFilterLabel');
+  const dl2=document.getElementById('dateList');
+  if(!activeFilter){
+    dateLabel.style.display='none';
+    dl2.innerHTML='';
+  } else {
+    const dates=[...new Set(data.filter(r=>r[0]===activeFilter).map(r=>r[1]))].sort();
+    dateLabel.style.display='';
+    const totalInLecture=data.filter(r=>r[0]===activeFilter).length;
+    dl2.innerHTML=`<button class="course-btn${!activeDateFilter?' active':''}" onclick="setDateFilter(null)">전체 (${totalInLecture})</button>`
+      +dates.map(d=>{
+        const cnt=data.filter(r=>r[0]===activeFilter&&r[1]===d).length;
+        return `<button class="course-btn${activeDateFilter===d?' active':''}" onclick="setDateFilter('${d.replace(/'/g,"\\'")}')">
+          ${d||'날짜 미기재'} (${cnt})</button>`;
+      }).join('');
+  }
 }
-function setFilter(f){activeFilter=f;buildSidebar();renderTable();}
+function setFilter(f){activeFilter=f;activeDateFilter=null;buildSidebar();renderTable();}
+function setDateFilter(d){activeDateFilter=d;buildSidebar();renderTable();}
 function renderTable(){
   const q=(document.getElementById('searchInput').value||'').toLowerCase();
-  let rows=data.filter(r=>!activeFilter||r[0]===activeFilter);
+  let rows=data.filter(r=>(!activeFilter||r[0]===activeFilter)&&(!activeDateFilter||r[1]===activeDateFilter));
   if(q) rows=rows.filter(r=>r.some(c=>String(c).toLowerCase().includes(q)));
   document.getElementById('tableMeta').textContent=`총 ${rows.length}건 표시 중`;
   const cat=CATS;
