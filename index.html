@@ -417,18 +417,20 @@ const COMPLIANCE_STANDARD = `유사투자자문업 컴플라이언스 기준 (�
 
 // ── 데이터 (파일 저장 방식) ──
 // Google Sheets 연동
+// ── 데이터 (파일 저장 방식) ──
+// Google Sheets 연동
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx_2EzFJ5qS1_hryH3v6NJ_cYp5XGmrdZASgLNdhBAcwsII0xbqmFpkXGP4DGTuv4U/exec';
 // API 키는 Apps Script에 안전하게 보관됨
+const TEAM_TOKEN = 'USProdOps';
 let data = [];
 let isLoading = false;
-
-
 
 // ── Sheets API ──
 async function loadFromSheets() {
   try {
-    const r = await fetch(SCRIPT_URL, { redirect: 'follow' });
+    const r = await fetch(SCRIPT_URL + '?token=' + encodeURIComponent(TEAM_TOKEN), { redirect: 'follow' });
     const json = await r.json();
+    if (json.success === false) throw new Error(json.error || '인증 실패');
     data = json.data || [];
     buildSidebar();
     renderTable();
@@ -443,7 +445,7 @@ async function addToSheets(row) {
     await fetch(SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
-      body: JSON.stringify({ action: 'add', row })
+      body: JSON.stringify({ action: 'add', row, token: TEAM_TOKEN })
     });
   } catch(e) { console.error('add failed', e); }
 }
@@ -453,7 +455,7 @@ async function deleteFromSheets(rowIndex) {
     await fetch(SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
-      body: JSON.stringify({ action: 'delete', rowIndex })
+      body: JSON.stringify({ action: 'delete', rowIndex, token: TEAM_TOKEN })
     });
   } catch(e) { console.error('delete failed', e); }
 }
@@ -463,24 +465,22 @@ async function bulkAddToSheets(rows) {
     await fetch(SCRIPT_URL, {
       method: 'POST',
       redirect: 'follow',
-      body: JSON.stringify({ action: 'bulkAdd', rows })
+      body: JSON.stringify({ action: 'bulkAdd', rows, token: TEAM_TOKEN })
     });
   } catch(e) { console.error('bulkAdd failed', e); }
 }
 
-// ── 상태 ──
+  // ── 상태 ──
 let activeFilter = null;
 let activeDateFilter = null;
 let bulkTab = 'paste', bulkPdf = null, bulkImgs = [];
 let parsedItems = [], reviewResult = null, scriptIssues = [];
 let scTab = 'text', scPdf = null, scImgs = [];
-
-// ── API (Apps Script 중계) ──
 async function callClaude(prompt, max=2000) {
   const r = await fetch(SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
-    body: JSON.stringify({ action: 'ai', messages: [{role:'user',content:prompt}], max })
+    body: JSON.stringify({ action: 'ai', messages: [{role:'user',content:prompt}], max, token: TEAM_TOKEN })
   });
   const d = await r.json();
   if (!d.success) throw new Error(d.error || 'AI 호출 실패');
@@ -491,7 +491,7 @@ async function callClaudeMulti(parts, max=4000) {
   const r = await fetch(SCRIPT_URL, {
     method: 'POST',
     redirect: 'follow',
-    body: JSON.stringify({ action: 'ai', messages: [{role:'user',content:parts}], max, beta: hasDoc ? 'pdfs-2024-09-25' : null })
+    body: JSON.stringify({ action: 'ai', messages: [{role:'user',content:parts}], max, beta: hasDoc ? 'pdfs-2024-09-25' : null, token: TEAM_TOKEN })
   });
   const d = await r.json();
   if (!d.success) throw new Error(d.error || 'AI 호출 실패');
