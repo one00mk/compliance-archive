@@ -603,8 +603,11 @@ function renderTable(){
     </tr>`;
   }).join('');
 }
+const DELETE_PASSWORD = '0000';
 function delEntry(i){
-  if(!confirm('삭제할까요?')) return;
+  const pw = prompt('삭제하려면 비밀번호를 입력하세요:');
+  if(pw === null) return;
+  if(pw !== DELETE_PASSWORD){ showToast('❌ 비밀번호가 틀렸습니다'); return; }
   deleteFromSheets(i);
   data.splice(i,1); buildSidebar(); renderTable();
   showToast('🗑 삭제되었습니다');
