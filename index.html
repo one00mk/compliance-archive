@@ -537,20 +537,31 @@ function buildSidebar(){
   // 날짜 필터 (특정 강의 선택 시에만 표시)
   const dateLabel=document.getElementById('dateFilterLabel');
   const dl2=document.getElementById('dateList');
-  if(!activeFilter){
-   if(!activeFilter){
+ if(!activeFilter){
     dateLabel.style.display='none';
     dl2.innerHTML='';
   } else {
-    const dates=[...new Set(data.filter(r=>r[0]===activeFilter).map(r=>r[1]))].sort();
+    const rowsForLecture=data.filter(r=>r[0]===activeFilter);
+    const dates=[...new Set(rowsForLecture.map(r=>r[1]))].sort();
     dateLabel.style.display='';
-    const totalInLecture=data.filter(r=>r[0]===activeFilter).length;
-    dl2.innerHTML=`<button class="course-btn${!activeDateFilter?' active':''}" onclick="setDateFilter(null)">전체 (${totalInLecture})</button>`
-      +dates.map(d=>{
-        const cnt=data.filter(r=>r[0]===activeFilter&&r[1]===d).length;
-        return `<button class="course-btn${activeDateFilter===d?' active':''}" onclick="setDateFilter('${d.replace(/'/g,"\\'")}')">
-          ${d||'날짜 미기재'} (${cnt})</button>`;
-      }).join('');
+    const totalInLecture=rowsForLecture.length;
+    const groups={};
+    dates.forEach(d=>{
+      const key=/^\d{6}$/.test(d)?`20${d.slice(0,2)}년 ${d.slice(2,4)}월`:'기타';
+      (groups[key]=groups[key]||[]).push(d);
+    });
+    const optionsHtml=Object.keys(groups).sort().map(g=>
+      `<optgroup label="${g}">`
+      +groups[g].map(d=>{
+        const cnt=rowsForLecture.filter(r=>r[1]===d).length;
+        return `<option value="${d}"${activeDateFilter===d?' selected':''}>${d||'날짜 미기재'} (${cnt})</option>`;
+      }).join('')
+      +`</optgroup>`
+    ).join('');
+    dl2.innerHTML=`<select onchange="setDateFilter(this.value||null)" style="width:100%;padding:7px 8px;border-radius:6px;background:var(--bg3);color:var(--text);border:1px solid var(--border);font-size:13px">
+      <option value=""${!activeDateFilter?' selected':''}>전체 (${totalInLecture})</option>
+      ${optionsHtml}
+    </select>`;
   }
 }
 function setFilter(f){activeFilter=f;activeDateFilter=null;buildSidebar();renderTable();}
