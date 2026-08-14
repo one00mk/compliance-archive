@@ -607,6 +607,10 @@ function buildSidebar(){
   });
 }
 [['b_lecture','acB'],['rv_lecture','acRv'],['sc_lecture','acSc'],['f_lecture','acF']].forEach(([i,l])=>setupAutocomplete(i,l));
+  ['b_date','sc_date','f_date'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(el) el.setAttribute('name','date_'+Math.random().toString(36).slice(2));
+});
 function setFilter(f){activeFilter=f;activeDateFilter=null;buildSidebar();renderTable();}
 function setDateFilter(d){activeDateFilter=d;buildSidebar();renderTable();}
 function renderTable(){
