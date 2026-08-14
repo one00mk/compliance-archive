@@ -96,6 +96,11 @@ tr:hover td{background:var(--bg3)}
 .field input,.field select,.field textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:9px 12px;color:var(--text);font-size:13px}
 .field input:focus,.field select,.field textarea:focus{outline:none;border-color:var(--accent)}
 .field select option{background:var(--bg3)}
+  .field{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);margin-top:4px;max-height:180px;overflow-y:auto;z-index:50;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ac-list.show{display:block}
+.ac-item{padding:8px 12px;font-size:13px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-item:hover,.ac-item.hl{background:var(--bg4)}
 .bulk-textarea{height:160px;resize:vertical;font-family:inherit;line-height:1.6}
 .meta-row{display:grid;grid-template-columns:1fr 140px;gap:12px}
 .btn-sm{padding:7px 14px;font-size:13px;border-radius:var(--radius)}
