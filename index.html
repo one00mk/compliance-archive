@@ -210,10 +210,10 @@ tr:hover td{background:var(--bg3)}
       <div class="meta-row">
         <div class="field">
           <label>강의명</label>
-          <input type="text" id="b_lecture" list="lectureListB" autocomplete="off" placeholder="예: 김영익_실전투자교실">
-          <datalist id="lectureListB"></datalist>
+          <input type="text" id="b_lecture" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <div class="ac-list" id="acB"></div>
         </div>
-        <div class="field"><label>날짜</label><input type="text" id="b_date" placeholder="260608"></div>
+        <input type="text" id="b_date" autocomplete="off" placeholder="260608">
       </div>
       <div class="tab-panel active" id="bpanel-paste">
         <div class="field">
@@ -271,8 +271,8 @@ tr:hover td{background:var(--bg3)}
       <div class="meta-row">
         <div class="field">
           <label>강의명</label>
-          <input type="text" id="rv_lecture" list="lectureListRv" autocomplete="off" placeholder="예: 김영익_실전투자교실">
-          <datalist id="lectureListRv"></datalist>
+          <input type="text" id="rv_lecture" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <div class="ac-list" id="acRv"></div>
         </div>
         <div class="field"><label>타임스탬프</label><input type="text" id="rv_ts" placeholder="43:21"></div>
       </div>
@@ -307,8 +307,8 @@ tr:hover td{background:var(--bg3)}
       <div class="meta-row">
         <div class="field">
           <label>강의명</label>
-          <input type="text" id="sc_lecture" list="lectureListSc" autocomplete="off" placeholder="예: 김영익_실전투자교실">
-          <datalist id="lectureListSc"></datalist>
+          <input type="text" id="sc_lecture" autocomplete="off" placeholder="예: 김영익_실전투자교실">
+          <div class="ac-list" id="acSc"></div>
         </div>
         <div class="field"><label>날짜</label><input type="text" id="sc_date" placeholder="260608"></div>
       </div>
@@ -361,8 +361,8 @@ tr:hover td{background:var(--bg3)}
       <div class="meta-row">
         <div class="field">
           <label>강의명</label>
-          <input type="text" id="f_lecture" list="lectureListF" autocomplete="off" placeholder="김영익_실전투자교실">
-          <datalist id="lectureListF"></datalist>
+          <input type="text" id="f_lecture" autocomplete="off" placeholder="김영익_실전투자교실">
+          <div class="ac-list" id="acF"></div>
         </div>
         <div class="field"><label>날짜</label><input type="text" id="f_date" placeholder="260608"></div>
       </div>
@@ -539,10 +539,7 @@ function buildSidebar(){
         ${l} (${cnt})</button>`;
     }).join('');
   // datalists
-  ['lectureListB','lectureListRv','lectureListSc','lectureListF'].forEach(id=>{
-    const dl=document.getElementById(id);
-    if(dl) dl.innerHTML=lectures.map(l=>`<option value="${l}">`).join('');
-  });
+  // (커스텀 드롭다운은 자체 함수로 처리)
   // 날짜 필터 (특정 강의 선택 시에만 표시)
   const dateLabel=document.getElementById('dateFilterLabel');
   const dl2=document.getElementById('dateList');
@@ -573,6 +570,36 @@ function buildSidebar(){
     </select>`;
   }
 }
+  function setupAutocomplete(inputId, listId){
+  const input=document.getElementById(inputId);
+  const list=document.getElementById(listId);
+  if(!input||!list) return;
+  let hl=-1;
+  function render(filter){
+    const lectures=getLectures();
+    const items=filter?lectures.filter(l=>l.toLowerCase().includes(filter.toLowerCase())):lectures;
+    hl=-1;
+    if(!items.length){ list.classList.remove('show'); list.innerHTML=''; return; }
+    list.innerHTML=items.map(l=>`<div class="ac-item">${l}</div>`).join('');
+    list.classList.add('show');
+  }
+  input.addEventListener('input',()=>render(input.value));
+  input.addEventListener('focus',()=>render(input.value));
+  input.addEventListener('blur',()=>setTimeout(()=>list.classList.remove('show'),150));
+  list.addEventListener('mousedown',(e)=>{
+    const item=e.target.closest('.ac-item');
+    if(item){ input.value=item.textContent; list.classList.remove('show'); }
+  });
+  input.addEventListener('keydown',(e)=>{
+    const items=[...list.querySelectorAll('.ac-item')];
+    if(!items.length) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); hl=Math.min(hl+1,items.length-1); items.forEach((it,i)=>it.classList.toggle('hl',i===hl)); items[hl].scrollIntoView({block:'nearest'}); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); hl=Math.max(hl-1,0); items.forEach((it,i)=>it.classList.toggle('hl',i===hl)); items[hl].scrollIntoView({block:'nearest'}); }
+    else if(e.key==='Enter'){ if(hl>=0){ e.preventDefault(); input.value=items[hl].textContent; list.classList.remove('show'); } }
+    else if(e.key==='Escape'){ list.classList.remove('show'); }
+  });
+}
+[['b_lecture','acB'],['rv_lecture','acRv'],['sc_lecture','acSc'],['f_lecture','acF']].forEach(([i,l])=>setupAutocomplete(i,l));
 function setFilter(f){activeFilter=f;activeDateFilter=null;buildSidebar();renderTable();}
 function setDateFilter(d){activeDateFilter=d;buildSidebar();renderTable();}
 function renderTable(){
