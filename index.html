@@ -701,18 +701,20 @@ function getFewShotExamples(lecture, maxExamples=8){
   return `\n\n다음은 과거에 실제로 분류된 예시입니다. 분류 기준과 표현 스타일을 참고하세요:\n${lines}\n`;
 }
 
-const PARSE_PROMPT = (lecture, date, examples) => `당신은 유사투자자문업 컴플라이언스 전문가입니다.
-아래는 편집자가 작성한 컴플라이언스 검토 메모입니다. 자유 형식으로 작성되어 있습니다.
-예시 형식: "40:23 소선업에서 반노제 삭제", "53:57~1:03:24 질의응답 구간", "47:34 애널리스트 도움 받았고요 삭제"
-
-강의명: ${lecture} / 날짜: ${date||'미기재'}
-${examples||''}
-메모에서 컴플라이언스 제거 구간을 모두 파싱하여 JSON 배열로만 반환하세요 (마크다운 없이):
-[{"ts":"40:23","summary":"소선업 반노제 발언","cat":"②","risk":"중"}]
-- ts: 타임스탬프 그대로
-- summary: 20자 이내 요약
-- cat: ①종목추천 ②시황단정 ③자산배분 ④개인신상 ⑤제3자인용 ⑥심리자극 ⑦양방향소통 ⑧정치적편향 ⑨도박미담화
-- risk: 상/중/하`;
+parsedItems=extractJSON(raw);
+    let expectedCount=null;
+    if(bulkTab==='paste'){
+      const memoText=document.getElementById('b_memo').value;
+      const tsMatches=memoText.match(/^\s*\d{1,2}[:;]\d{2}(?:[:;]\d{2})?(?:[:;]\d{2})?(?:\s*[-~]\s*\d{1,2}[:;]\d{2}(?:[:;]\d{2})?(?:[:;]\d{2})?)?/gm);
+      expectedCount=tsMatches?tsMatches.length:null;
+    }
+    if(!parsedItems.length){
+      status.className='parse-status err'; status.textContent='파싱된 항목이 없습니다. 메모 형식을 확인해주세요.';
+    } else {
+      const warn=(expectedCount&&parsedItems.length<expectedCount)?` ⚠️ 메모에서 타임스탬프 ${expectedCount}개가 감지됐는데 ${parsedItems.length}개만 반환됐어요. 누락된 구간이 있을 수 있으니 원문과 대조해주세요.`:'';
+      status.className=warn?'parse-status err':'parse-status ok';
+      status.textContent=`✓ ${parsedItems.length}건 파싱 완료${warn}`;
+      document.getElementById('bConfirmBtn').style.display='';
 
 async function runBulkParse(){
   const lecture=document.getElementById('b_lecture').value.trim();
@@ -759,10 +761,18 @@ async function runBulkParse(){
     bar.style.width='100%';
     setTimeout(()=>prog.style.display='none',300);
     parsedItems=extractJSON(raw);
+    let expectedCount=null;
+    if(bulkTab==='paste'){
+      const memoText=document.getElementById('b_memo').value;
+      const tsMatches=memoText.match(/^\s*\d{1,2}[:;]\d{2}(?:[:;]\d{2})?(?:[:;]\d{2})?(?:\s*[-~]\s*\d{1,2}[:;]\d{2}(?:[:;]\d{2})?(?:[:;]\d{2})?)?/gm);
+      expectedCount=tsMatches?tsMatches.length:null;
+    }
     if(!parsedItems.length){
       status.className='parse-status err'; status.textContent='파싱된 항목이 없습니다. 메모 형식을 확인해주세요.';
     } else {
-      status.className='parse-status ok'; status.textContent=`✓ ${parsedItems.length}건 파싱 완료`;
+      const warn=(expectedCount&&parsedItems.length<expectedCount)?` ⚠️ 메모에서 타임스탬프 ${expectedCount}개가 감지됐는데 ${parsedItems.length}개만 반환됐어요. 누락된 구간이 있을 수 있으니 원문과 대조해주세요.`:'';
+      status.className=warn?'parse-status err':'parse-status ok';
+      status.textContent=`✓ ${parsedItems.length}건 파싱 완료${warn}`;
       document.getElementById('bConfirmBtn').style.display='';
       document.getElementById('bPreview').innerHTML=parsedItems.map((it,i)=>{
         const catOpts=Object.keys(CATS).map(k=>`<option value="${k}"${it.cat===k?' selected':''}>${k} ${CATS[k].label}</option>`).join('');
