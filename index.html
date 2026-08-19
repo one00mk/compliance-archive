@@ -1055,25 +1055,46 @@ async function runScriptScan(){
   function downloadScriptIssuesXLSX(){
   if(!scriptIssues.length){showToast('다운로드할 결과가 없습니다. 먼저 AI 스캔을 실행해주세요.');return;}
   const lecture=document.getElementById('sc_lecture')?.value.trim()||'스크립트검토';
+  const header=['선택','타임스탬프','유형','위험도','발언','판단사유','PM 확인','비고'];
   const rows=scriptIssues.map((it,i)=>[
     document.getElementById('scck'+i)?.checked?'O':'',
     it.ts||'-',
-    it.cat,
-    (CATS[it.cat]||{}).label||'',
+    `${it.cat} ${(CATS[it.cat]||{}).label||''}`,
     it.risk,
     it.quote,
     it.reason,
-    '', // PM 확인 (승인/반려/보류 등 직접 입력)
-    ''  // 비고
+    '',
+    ''
   ]);
-  const ws=XLSX.utils.aoa_to_sheet([
-    ['1차 선택','타임스탬프','유형번호','유형명','위험도','발언','판단사유','PM 확인','비고'],
-    ...rows
-  ]);
-  ws['!cols']=[{wch:8},{wch:12},{wch:8},{wch:20},{wch:8},{wch:45},{wch:45},{wch:12},{wch:25}];
+  const aoa=[header, ...rows];
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:6},{wch:11},{wch:16},{wch:6},{wch:34},{wch:34},{wch:10},{wch:18}];
+  ws['!rows']=[{hpt:22}, ...rows.map(()=>({hpt:48}))];
+  ws['!freeze']=undefined;
+  ws['!panes']=undefined;
+  const riskColor={'상':'FFC7CE','중':'FFEB9C','하':'C6EFCE'};
+  const range=XLSX.utils.decode_range(ws['!ref']);
+  for(let R=range.s.r; R<=range.e.r; R++){
+    for(let C=range.s.c; C<=range.e.c; C++){
+      const addr=XLSX.utils.encode_cell({r:R,c:C});
+      if(!ws[addr]) continue;
+      if(R===0){
+        ws[addr].s={font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F2A44'}},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+      } else {
+        ws[addr].s={alignment:{vertical:'top',wrapText:true},font:{sz:10}};
+        if(C===3){ // 위험도 컬럼
+          const val=ws[addr].v;
+          ws[addr].s.fill={fgColor:{rgb:riskColor[val]||'FFFFFF'}};
+          ws[addr].s.alignment.horizontal='center';
+        }
+        if(C===0||C===1){ ws[addr].s.alignment.horizontal='center'; }
+      }
+    }
+  }
+  ws['!sheetView']=[{state:'frozen',ySplit:1}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'PM검수용');
-  XLSX.writeFile(wb, `${lecture}_2차검수.xlsx`);
+  XLSX.writeFile(wb, `${lecture}_2차검수.xlsx`, {cellStyles:true});
 }
 function downloadScriptIssues(){
   if(!scriptIssues.length){showToast('다운로드할 결과가 없습니다. 먼저 AI 스캔을 실행해주세요.');return;}
