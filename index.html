@@ -679,14 +679,17 @@ const DELETE_PASSWORD = '0000';
   const a=parseInt(m[1],10), b=parseInt(m[2],10), c=m[3]?parseInt(m[3],10):null;
   return c!==null ? a*3600+b*60+c : a*60+b;
 }
-function dupTokens(s){
-  return new Set(String(s||'').replace(/[^\w가-힣]/g,' ').split(/\s+/).filter(t=>t.length>=2));
+function dupBigrams(s){
+  const clean=String(s||'').replace(/\s+/g,'');
+  const set=new Set();
+  for(let i=0;i<clean.length-1;i++) set.add(clean.slice(i,i+2));
+  return set;
 }
 function dupSim(a,b){
-  const ta=dupTokens(a), tb=dupTokens(b);
-  if(!ta.size||!tb.size) return 0;
-  let inter=0; ta.forEach(t=>{ if(tb.has(t)) inter++; });
-  return inter/Math.min(ta.size,tb.size);
+  const ba=dupBigrams(a), bb=dupBigrams(b);
+  if(!ba.size||!bb.size) return 0;
+  let inter=0; ba.forEach(t=>{ if(bb.has(t)) inter++; });
+  return inter/Math.min(ba.size,bb.size);
 }
 function computeDupGroups(){
   const buckets={};
@@ -703,9 +706,9 @@ function computeDupGroups(){
       if(cluster.length===0){ cluster=[i]; continue; }
       const prev=cluster[cluster.length-1];
       const tPrev=parseTsSec(data[prev][2]), tCur=parseTsSec(data[i][2]);
-      const closeTs=(tPrev!==null && tCur!==null && Math.abs(tCur-tPrev)<=5);
+           const closeTs=(tPrev!==null && tCur!==null && Math.abs(tCur-tPrev)<=10);
       const sim=dupSim(data[prev][4], data[i][4]);
-      if(closeTs && sim>=0.4){
+      if(closeTs && sim>=0.25){
         cluster.push(i);
       } else {
         if(cluster.length>=2) groups.push(cluster.slice());
