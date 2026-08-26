@@ -765,7 +765,6 @@ async function deleteDupSelected(){
   closeDupModal();
 }
 function delEntry(i){
-function delEntry(i){
   const pw = prompt('삭제하려면 비밀번호를 입력하세요:');
   if(pw === null) return;
   if(pw !== DELETE_PASSWORD){ showToast('❌ 비밀번호가 틀렸습니다'); return; }
