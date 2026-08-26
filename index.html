@@ -170,7 +170,8 @@ tr:hover td{background:var(--bg3)}
   <button class="btn btn-outline" onclick="openReviewModal()">🔍 컴플 검토</button>
   <button class="btn btn-outline" onclick="openScriptModal()">📝 스크립트 검토</button>
   <button class="btn btn-outline" onclick="openFormModal()">+ 구간 직접 입력</button>
-  <button class="btn btn-outline" onclick="exportXLSX()">↓ 엑셀 내보내기</button>
+   <button class="btn btn-outline" onclick="exportXLSX()">↓ 엑셀 내보내기</button>
+  <button class="btn btn-outline" onclick="openDupModal()">🔍 중복 정리</button>
   <button class="btn btn-danger" onclick="resetData()">↺ 데이터 초기화</button>
 </aside>
 
@@ -333,6 +334,26 @@ tr:hover td{background:var(--bg3)}
           <div class="upload-filename" id="scPdfName"></div>
         </div>
       </div>
+      <!-- ── 중복 정리 모달 ── -->
+<div class="overlay" id="dupOverlay">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">🔍 중복 정리</div>
+        <div class="modal-desc">같은 강의·비슷한 시간대에 겹쳐서 등록된 항목을 찾아드려요</div>
+      </div>
+      <button class="modal-close" onclick="closeDupModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dupList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="modal-foot">
+      <div style="flex:1;font-size:12px;color:var(--text3)">체크된 항목이 삭제됩니다 (기본으로 각 그룹 첫 항목은 유지 처리됨)</div>
+      <button class="btn btn-outline btn-sm" onclick="closeDupModal()">닫기</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteDupSelected()">선택 항목 삭제</button>
+    </div>
+  </div>
+</div>
       <div class="tab-panel" id="scpanel-img">
         <input type="file" id="scImgInput" accept="image/*" multiple style="display:none" onchange="addScImgs(this.files)">
         <div class="upload-zone" id="scImgZone" onclick="document.getElementById('scImgInput').click()"
@@ -651,6 +672,99 @@ function renderTable(){
   }).join('');
 }
 const DELETE_PASSWORD = '0000';
+  function parseTsSec(ts){
+  if(!ts) return null;
+  const s = String(ts).split('~')[0].trim();
+  const m = s.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if(!m) return null;
+  const a=parseInt(m[1],10), b=parseInt(m[2],10), c=m[3]?parseInt(m[3],10):null;
+  return c!==null ? a*3600+b*60+c : a*60+b;
+}
+function dupTokens(s){
+  return new Set(String(s||'').replace(/[^\w가-힣]/g,' ').split(/\s+/).filter(t=>t.length>=2));
+}
+function dupSim(a,b){
+  const ta=dupTokens(a), tb=dupTokens(b);
+  if(!ta.size||!tb.size) return 0;
+  let inter=0; ta.forEach(t=>{ if(tb.has(t)) inter++; });
+  return inter/Math.min(ta.size,tb.size);
+}
+function computeDupGroups(){
+  const buckets={};
+  data.forEach((r,i)=>{
+    const key=(r[0]||'')+'|'+(r[1]||'');
+    (buckets[key]=buckets[key]||[]).push(i);
+  });
+  const groups=[];
+  Object.values(buckets).forEach(idxs=>{
+    const sorted=idxs.slice().sort((a,b)=>(parseTsSec(data[a][2])||0)-(parseTsSec(data[b][2])||0));
+    let cluster=[];
+    for(let k=0;k<sorted.length;k++){
+      const i=sorted[k];
+      if(cluster.length===0){ cluster=[i]; continue; }
+      const prev=cluster[cluster.length-1];
+      const tPrev=parseTsSec(data[prev][2]), tCur=parseTsSec(data[i][2]);
+      const closeTs=(tPrev!==null && tCur!==null && Math.abs(tCur-tPrev)<=5);
+      const sim=dupSim(data[prev][4], data[i][4]);
+      if(closeTs && sim>=0.4){
+        cluster.push(i);
+      } else {
+        if(cluster.length>=2) groups.push(cluster.slice());
+        cluster=[i];
+      }
+    }
+    if(cluster.length>=2) groups.push(cluster.slice());
+  });
+  return groups;
+}
+function openDupModal(){
+  const groups=computeDupGroups();
+  const list=document.getElementById('dupList');
+  if(!groups.length){
+    list.innerHTML='<div style="color:var(--text3);text-align:center;padding:20px">중복으로 보이는 항목이 없습니다 🎉</div>';
+  } else {
+    list.innerHTML=groups.map((g,gi)=>{
+      const items=g.map((idx,k)=>{
+        const r=data[idx];
+        const c=CATS[r[3]]||{label:r[3],color:'#888'};
+        return `<div style="display:flex;gap:8px;align-items:flex-start;padding:8px 0;${k>0?'border-top:1px solid var(--border)':''}">
+          <input type="checkbox" class="dupck" data-idx="${idx}" ${k===0?'':'checked'} style="margin-top:3px">
+          <div style="flex:1">
+            <div class="result-meta">
+              <span class="result-ts">${r[2]||'-'}</span>
+              <span class="tag" style="background:${c.color}18;color:${c.color};border:1px solid ${c.color}30">${r[3]}</span>
+              <span class="risk-badge risk-${r[5]}">${r[5]}</span>
+              ${k===0?'<span style="color:var(--good);font-size:11px;font-weight:700">기본 유지</span>':''}
+            </div>
+            <div class="result-quote">"${r[4]}"</div>
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="result-item" style="flex-direction:column;align-items:stretch">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px">중복 그룹 ${gi+1} (${g.length}건)</div>
+        ${items}
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('dupOverlay').classList.add('open');
+}
+function closeDupModal(){document.getElementById('dupOverlay').classList.remove('open');}
+async function deleteDupSelected(){
+  const checked=[...document.querySelectorAll('.dupck:checked')].map(el=>parseInt(el.dataset.idx,10));
+  if(!checked.length){showToast('삭제할 항목을 선택해주세요');return;}
+  const pw=prompt(`선택한 ${checked.length}건을 삭제하려면 비밀번호를 입력하세요:`);
+  if(pw===null) return;
+  if(pw!==DELETE_PASSWORD){showToast('❌ 비밀번호가 틀렸습니다');return;}
+  const sorted=checked.slice().sort((a,b)=>b-a);
+  for(const idx of sorted){
+    await deleteFromSheets(idx);
+    data.splice(idx,1);
+  }
+  buildSidebar(); renderTable();
+  showToast(`🗑 ${checked.length}건 삭제되었습니다`);
+  closeDupModal();
+}
+function delEntry(i){
 function delEntry(i){
   const pw = prompt('삭제하려면 비밀번호를 입력하세요:');
   if(pw === null) return;
