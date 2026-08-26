@@ -334,26 +334,6 @@ tr:hover td{background:var(--bg3)}
           <div class="upload-filename" id="scPdfName"></div>
         </div>
       </div>
-      <!-- ── 중복 정리 모달 ── -->
-<div class="overlay" id="dupOverlay">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title">🔍 중복 정리</div>
-        <div class="modal-desc">같은 강의·비슷한 시간대에 겹쳐서 등록된 항목을 찾아드려요</div>
-      </div>
-      <button class="modal-close" onclick="closeDupModal()">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="dupList" style="display:flex;flex-direction:column;gap:10px"></div>
-    </div>
-    <div class="modal-foot">
-      <div style="flex:1;font-size:12px;color:var(--text3)">체크된 항목이 삭제됩니다 (기본으로 각 그룹 첫 항목은 유지 처리됨)</div>
-      <button class="btn btn-outline btn-sm" onclick="closeDupModal()">닫기</button>
-      <button class="btn btn-danger btn-sm" onclick="deleteDupSelected()">선택 항목 삭제</button>
-    </div>
-  </div>
-</div>
       <div class="tab-panel" id="scpanel-img">
         <input type="file" id="scImgInput" accept="image/*" multiple style="display:none" onchange="addScImgs(this.files)">
         <div class="upload-zone" id="scImgZone" onclick="document.getElementById('scImgInput').click()"
@@ -378,7 +358,26 @@ tr:hover td{background:var(--bg3)}
     </div>
   </div>
 </div>
-
+      <!-- ── 중복 정리 모달 ── -->
+<div class="overlay" id="dupOverlay">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">🔍 중복 정리</div>
+        <div class="modal-desc">같은 강의·비슷한 시간대에 겹쳐서 등록된 항목을 찾아드려요</div>
+      </div>
+      <button class="modal-close" onclick="closeDupModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="dupList" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div class="modal-foot">
+      <div style="flex:1;font-size:12px;color:var(--text3)">체크된 항목이 삭제됩니다 (기본으로 각 그룹 첫 항목은 유지 처리됨)</div>
+      <button class="btn btn-outline btn-sm" onclick="closeDupModal()">닫기</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteDupSelected()">선택 항목 삭제</button>
+    </div>
+  </div>
+</div>
 <!-- ── 직접 입력 모달 ── -->
 <div class="overlay" id="formOverlay">
   <div class="modal" style="max-width:480px">
