@@ -1215,12 +1215,18 @@ function downloadScriptIssues(){
   if(!scriptIssues.length){showToast('다운로드할 결과가 없습니다. 먼저 AI 스캔을 실행해주세요.');return;}
   const lecture=document.getElementById('sc_lecture')?.value.trim()||'스크립트검토';
   const esc=s=>String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const riskColor={'상':'#FFC7CE','중':'#FFEB9C','하':'#C6EFCE'};
   const rowsHtml=scriptIssues.map((it,i)=>{
     const checked=document.getElementById('scck'+i)?.checked?'O':'';
     const label=(CATS[it.cat]||{}).label||'';
+    const rc=riskColor[it.risk]||'#FFFFFF';
     return `<tr>
-      <td>${checked}</td><td>${esc(it.ts)||'-'}</td><td>${esc(it.cat)}</td><td>${esc(label)}</td><td>${esc(it.risk)}</td>
-      <td>${esc(it.quote)}</td><td>${esc(it.reason)}</td>
+      <td class="c">${checked}</td>
+      <td class="c mono">${esc(it.ts)||'-'}</td>
+      <td class="c">${esc(it.cat)} ${esc(label)}</td>
+      <td class="c" style="background:${rc};font-weight:700">${esc(it.risk)}</td>
+      <td>${esc(it.quote)}</td>
+      <td>${esc(it.reason)}</td>
     </tr>`;
   }).join('');
   const w=window.open('','_blank');
@@ -1228,19 +1234,29 @@ function downloadScriptIssues(){
   w.document.write(`
     <html><head><meta charset="utf-8"><title>${esc(lecture)}_컴플검토결과</title>
     <style>
-      body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:12px;padding:20px}
-      h2{margin-bottom:4px}
-      table{width:100%;border-collapse:collapse;margin-top:12px}
-      th,td{border:1px solid #999;padding:6px 8px;text-align:left;vertical-align:top}
-      th{background:#222;color:#fff}
-      tr:nth-child(even) td{background:#f4f4f4}
+      @page{margin:14mm}
+      body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:11px;padding:0;color:#111}
+      h2{margin:0 0 4px}
+      .sub{color:#666;font-size:11px;margin-bottom:10px}
+      table{width:100%;border-collapse:collapse;table-layout:fixed}
+      thead{display:table-header-group}
+      tr{page-break-inside:avoid}
+      th,td{border:1px solid #999;padding:6px 7px;text-align:left;vertical-align:top;word-break:break-word}
+      th{background:#1F2A44;color:#fff;font-size:10.5px}
+      td.c{text-align:center}
+      td.mono{font-family:monospace;font-weight:700}
+      col.col-check{width:6%} col.col-ts{width:10%} col.col-cat{width:14%} col.col-risk{width:7%} col.col-quote{width:31%} col.col-reason{width:32%}
+      tr:nth-child(even) td{background:#f7f7f7}
     </style></head>
     <body>
       <h2>${esc(lecture)} — 컴플라이언스 검토 결과</h2>
-      <div>생성일: ${new Date().toLocaleString('ko-KR')}</div>
+      <div class="sub">생성일: ${new Date().toLocaleString('ko-KR')}</div>
       <table>
-        <tr><th>선택</th><th>타임스탬프</th><th>유형</th><th>유형명</th><th>위험도</th><th>발언</th><th>판단사유</th></tr>
-        ${rowsHtml}
+        <colgroup>
+          <col class="col-check"><col class="col-ts"><col class="col-cat"><col class="col-risk"><col class="col-quote"><col class="col-reason">
+        </colgroup>
+        <thead><tr><th>선택</th><th>타임스탬프</th><th>유형</th><th>위험도</th><th>발언</th><th>판단사유</th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
       </table>
     </body></html>
   `);
