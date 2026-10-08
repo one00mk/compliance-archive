@@ -838,15 +838,16 @@ function extractVmCandidates(csvRows){
   const out=[];
   for(const r of csvRows){
     const comment=(r['Comment']||'').trim();
-    if(!comment || !/\(삭제\)/.test(comment)) continue;
+    if(!comment || !/삭제/.test(comment)) continue;
     const rangeM=comment.match(/(\d{1,2}:\d{2}(?::\d{2})?)\s*~\s*(\d{1,2}:\d{2}(?::\d{2})?)/);
+    const clean=s=>s.replace(/\(?\s*삭제\s*(요청|부탁드립니다|부탁)?\s*\)?/g,'').trim();
     let startSec, endSec, note;
     if(rangeM){
       startSec=vmTsToSec(rangeM[1]); endSec=vmTsToSec(rangeM[2]);
-      note=comment.replace(rangeM[0],'').replace(/\(삭제\)/,'').trim();
+      note=clean(comment.replace(rangeM[0],''));
     } else {
       startSec=vmTsToSec(r['Timecode']); endSec=startSec;
-      note=comment.replace(/\(삭제\)/,'').trim();
+      note=clean(comment);
     }
     out.push({startSec, endSec, note});
   }
